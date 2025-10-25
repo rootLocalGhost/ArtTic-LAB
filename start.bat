@@ -8,13 +8,23 @@ ECHO [INFO] Preparing to launch ArtTic-LAB...
 
 REM =======================================================
 REM 1. FIND CONDA INSTALLATION
+REM    Searches for Conda in PATH first, then in common default locations.
 REM =======================================================
 SET "CONDA_BASE_PATH="
 where conda.exe >nul 2>nul && (FOR /F "delims=" %%i IN ('where conda.exe') DO SET "CONDA_EXE_PATH=%%i" & GOTO FoundConda)
-IF EXIST "%USERPROFILE%\Miniconda3\condabin\conda.bat" SET "CONDA_BASE_PATH=%USERPROFILE%\Miniconda3" & GOTO FoundConda
-IF EXIST "%USERPROFILE%\Anaconda3\condabin\conda.bat" SET "CONDA_BASE_PATH=%USERPROFILE%\Anaconda3" & GOTO FoundConda
+
+REM --- Check User Paths ---
+IF EXIST "%USERPROFILE%\miniconda3\condabin\conda.bat" SET "CONDA_BASE_PATH=%USERPROFILE%\miniconda3" & GOTO FoundConda
+IF EXIST "%USERPROFILE%\anaconda3\condabin\conda.bat" SET "CONDA_BASE_PATH=%USERPROFILE%\anaconda3" & GOTO FoundConda
+REM -- Added Miniforge User Path --
+IF EXIST "%USERPROFILE%\AppData\Local\miniforge3\condabin\conda.bat" SET "CONDA_BASE_PATH=%USERPROFILE%\AppData\Local\miniforge3" & GOTO FoundConda
+
+REM --- Check System Paths ---
 IF EXIST "%ProgramData%\Miniconda3\condabin\conda.bat" SET "CONDA_BASE_PATH=%ProgramData%\Miniconda3" & GOTO FoundConda
 IF EXIST "%ProgramData%\Anaconda3\condabin\conda.bat" SET "CONDA_BASE_PATH=%ProgramData%\Anaconda3" & GOTO FoundConda
+REM -- Added Miniforge System Path --
+IF EXIST "%ProgramData%\Miniforge3\condabin\conda.bat" SET "CONDA_BASE_PATH=%ProgramData%\Miniforge3" & GOTO FoundConda
+
 GOTO NoConda
 
 :FoundConda
@@ -56,7 +66,7 @@ GOTO End
 :NoConda
 ECHO.
 ECHO [ERROR] Conda installation not found.
-ECHO Please ensure Miniconda or Anaconda is installed and run install.bat.
+ECHO Please ensure Miniconda, Anaconda, or Miniforge is installed and run install.bat.
 GOTO End
 
 :InitFail
