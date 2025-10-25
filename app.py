@@ -6,6 +6,7 @@ import os
 import signal
 import random
 import torch
+import warnings
 from helpers.cli_manager import setup_logging, log_system_info, APP_LOGGER_NAME
 from core.logic import (
     SCHEDULER_MAP,
@@ -13,6 +14,9 @@ from core.logic import (
     get_available_loras,
     get_output_images,
 )
+
+warnings.filterwarnings("ignore", ".*safety_checker.*")
+warnings.filterwarnings("ignore", category=UserWarning)
 
 parser = argparse.ArgumentParser(
     description="ArtTic-LAB: A clean UI for Intel ARC GPUs."
@@ -47,9 +51,6 @@ def signal_handler(sig, frame):
     print("\n")
     logger.info("Ctrl+C detected. Shutting down ArtTic-LAB gracefully...")
     sys.exit(0)
-
-
-signal.signal(signal.SIGINT, signal_handler)
 
 
 def launch_gradio():
