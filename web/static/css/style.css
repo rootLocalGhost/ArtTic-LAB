@@ -631,7 +631,8 @@ body {
 .image-preview-wrapper {
      position: relative;
      width: 100%;
-     aspect-ratio: 4 / 3;
+     min-height: 256px;
+     aspect-ratio: 1 / 1;
      background-color: var(--white);
      border: 1px solid var(--medium-gray);
      border-radius: 0.75rem;
@@ -640,6 +641,7 @@ body {
      justify-content: center;
      overflow: hidden;
      box-shadow: var(--shadow-sm);
+     transition: aspect-ratio 0.3s ease;
 }
 
 .image-preview-wrapper:not(.has-image) {
