@@ -215,6 +215,10 @@ document.addEventListener("DOMContentLoaded", () => {
       state.currentLoraName = "None";
       state.currentCpuOffload = false;
       state.currentVaeTiling = true;
+
+      ui.params.cpuOffloadCheckbox.checked = false;
+      ui.params.vaeTilingCheckbox.checked = true;
+
       updateStatus(data.status_message, "unloaded");
       setBusyState(false);
       updateLoadButtonState();
@@ -299,7 +303,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateStatus(message, statusClass) {
-    ui.status.text.textContent = message;
+    if (statusClass === "unloaded") {
+      ui.status.text.textContent = "No model loaded.";
+    } else {
+      ui.status.text.textContent = message;
+    }
     const iconName =
       { ready: "memory", unloaded: "memory_off", busy: "hourglass_top" }[
         statusClass
