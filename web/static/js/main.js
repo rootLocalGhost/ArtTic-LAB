@@ -8,6 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
     currentModelName: null,
     currentLoraName: "None",
     currentCpuOffload: false,
+    currentVaeTiling: true,
     socket: null,
     galleryImages: [],
     currentLightboxIndex: -1,
@@ -77,6 +78,8 @@ document.addEventListener("DOMContentLoaded", () => {
       refreshBtn: document.getElementById("refresh-models-btn"),
     },
     lora: {
+      toggle: document.getElementById("lora-toggle"),
+      container: document.getElementById("lora-options-container"),
       dropdown: document.getElementById("lora-dropdown"),
       refreshBtn: document.getElementById("refresh-loras-btn"),
       weightSlider: document.getElementById("lora-weight-slider"),
@@ -98,6 +101,8 @@ document.addEventListener("DOMContentLoaded", () => {
       randomizeSeedBtn: document.getElementById("randomize-seed-btn"),
       vaeTilingCheckbox: document.getElementById("vae-tiling-checkbox"),
       cpuOffloadCheckbox: document.getElementById("cpu-offload-checkbox"),
+      resGuidance: document.getElementById("resolution-guidance"),
+      resText: document.getElementById("resolution-text"),
     },
     generate: {
       wrapper: document.getElementById("image-preview-wrapper"),
@@ -132,6 +137,12 @@ document.addEventListener("DOMContentLoaded", () => {
       zoomOutBtn: document.getElementById("lightbox-zoom-out"),
       fitBtn: document.getElementById("lightbox-fit"),
       deleteBtn: document.getElementById("lightbox-delete"),
+    },
+    dialog: {
+      overlay: document.getElementById("dialog-overlay"),
+      title: document.getElementById("dialog-title"),
+      message: document.getElementById("dialog-message"),
+      buttons: document.getElementById("dialog-buttons"),
     },
     busyControls: [],
   };
@@ -169,12 +180,19 @@ document.addEventListener("DOMContentLoaded", () => {
       state.isModelLoaded = true;
       state.modelType = data.model_type;
       state.currentModelName = ui.model.dropdown.dataset.value;
-      state.currentLoraName = ui.lora.dropdown.dataset.value;
+      state.currentLoraName = ui.lora.toggle.checked
+        ? ui.lora.dropdown.dataset.value
+        : "None";
       state.currentCpuOffload = ui.params.cpuOffloadCheckbox.checked;
+      state.currentVaeTiling = ui.params.vaeTilingCheckbox.checked;
+
       updateStatus(data.status_message, "ready");
       setDimensions(data.width, data.height);
       setBusyState(false);
       updateLoadButtonState();
+
+      ui.params.resText.textContent = `Est. max resolution: ${data.max_res_vram}px (VRAM), ${data.max_res_offload}px (Offload)`;
+      ui.params.resGuidance.classList.remove("hidden");
     },
     generation_complete: (data) => {
       const imageUrl = `/outputs/${data.image_filename}?t=${Date.now()}`;
@@ -187,14 +205,20 @@ document.addEventListener("DOMContentLoaded", () => {
       ui.generate.infoText.textContent = data.info;
       setBusyState(false);
     },
+    generation_failed: (data) => {
+      showDialog("Generation Failed", data.message, [{ text: "OK" }]);
+      setBusyState(false);
+    },
     model_unloaded: (data) => {
       state.isModelLoaded = false;
       state.currentModelName = null;
       state.currentLoraName = "None";
       state.currentCpuOffload = false;
+      state.currentVaeTiling = true;
       updateStatus(data.status_message, "unloaded");
       setBusyState(false);
       updateLoadButtonState();
+      ui.params.resGuidance.classList.add("hidden");
     },
     progress_update: (data) => {
       showProgressBar(true);
@@ -216,11 +240,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         closeLightbox();
       } else {
-        alert(`Could not delete image: ${data.message}`);
+        showDialog("Error", `Could not delete image: ${data.message}`, [
+          { text: "OK" },
+        ]);
       }
     },
     error: (data) => {
-      alert(`An error occurred: ${data.message}`);
+      showDialog("Server Error", data.message, [{ text: "OK" }]);
       setBusyState(false);
       updateLoadButtonState();
     },
@@ -256,14 +282,18 @@ document.addEventListener("DOMContentLoaded", () => {
   function updateLoadButtonState() {
     if (state.isBusy) return;
     const selectedModel = ui.model.dropdown.dataset.value;
-    const selectedLora = ui.lora.dropdown.dataset.value;
+    const selectedLora = ui.lora.toggle.checked
+      ? ui.lora.dropdown.dataset.value
+      : "None";
     const selectedOffload = ui.params.cpuOffloadCheckbox.checked;
+    const selectedTiling = ui.params.vaeTilingCheckbox.checked;
 
     const isSameConfig =
       state.isModelLoaded &&
       selectedModel === state.currentModelName &&
       selectedLora === state.currentLoraName &&
-      selectedOffload === state.currentCpuOffload;
+      selectedOffload === state.currentCpuOffload &&
+      selectedTiling === state.currentVaeTiling;
 
     ui.model.loadBtn.disabled = isSameConfig;
   }
@@ -333,6 +363,23 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  function showDialog(title, message, buttons) {
+    ui.dialog.title.textContent = title;
+    ui.dialog.message.innerHTML = message;
+    ui.dialog.buttons.innerHTML = "";
+    buttons.forEach((btnInfo) => {
+      const button = document.createElement("button");
+      button.textContent = btnInfo.text;
+      button.className = `btn ${btnInfo.class || "btn-secondary"}`;
+      button.onclick = () => {
+        ui.dialog.overlay.classList.add("hidden");
+        if (btnInfo.callback) btnInfo.callback();
+      };
+      ui.dialog.buttons.appendChild(button);
+    });
+    ui.dialog.overlay.classList.remove("hidden");
+  }
+
   function populateGallery(images) {
     state.galleryImages = images || [];
     ui.gallery.grid.innerHTML = "";
@@ -356,11 +403,42 @@ document.addEventListener("DOMContentLoaded", () => {
   function openLightbox(index) {
     showLightboxImage(index);
     ui.lightbox.container.classList.remove("hidden");
-    resetZoomAndPan();
+    document.addEventListener("keydown", handleLightboxKeys);
   }
 
   function closeLightbox() {
     ui.lightbox.container.classList.add("hidden");
+    document.removeEventListener("keydown", handleLightboxKeys);
+  }
+
+  function handleLightboxKeys(e) {
+    if (ui.lightbox.container.classList.contains("hidden")) return;
+    switch (e.key) {
+      case "Escape":
+        closeLightbox();
+        break;
+      case "ArrowLeft":
+        ui.lightbox.prevBtn.click();
+        break;
+      case "ArrowRight":
+        ui.lightbox.nextBtn.click();
+        break;
+      case "f":
+      case "F":
+        ui.lightbox.fitBtn.click();
+        break;
+      case "+":
+      case "=":
+        ui.lightbox.zoomInBtn.click();
+        break;
+      case "-":
+      case "_":
+        ui.lightbox.zoomOutBtn.click();
+        break;
+      case "Delete":
+        ui.lightbox.deleteBtn.click();
+        break;
+    }
   }
 
   function showLightboxImage(index) {
@@ -409,8 +487,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function setupEventListeners() {
     document.querySelectorAll(".range-input").forEach((slider) => {
-      const valueDisplayId = slider.id.replace("-slider", "-value");
-      const valueDisplay = document.getElementById(valueDisplayId);
+      const valueDisplay = document.getElementById(
+        slider.id.replace("-slider", "-value")
+      );
       const updateFunc = () => {
         if (valueDisplay)
           valueDisplay.textContent =
@@ -442,13 +521,20 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
 
+    ui.lora.toggle.addEventListener("change", () => {
+      ui.lora.container.classList.toggle("hidden");
+      updateLoadButtonState();
+    });
+
     ui.model.loadBtn.addEventListener("click", () => {
       setBusyState(true);
       updateStatus("Loading model...", "busy");
       sendMessage("load_model", {
         model_name: ui.model.dropdown.dataset.value,
         scheduler_name: ui.model.samplerDropdown.dataset.value,
-        lora_name: ui.lora.dropdown.dataset.value,
+        lora_name: ui.lora.toggle.checked
+          ? ui.lora.dropdown.dataset.value
+          : "None",
         vae_tiling: ui.params.vaeTilingCheckbox.checked,
         cpu_offload: ui.params.cpuOffloadCheckbox.checked,
       });
@@ -465,9 +551,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (e.target.tagName === "LI") updateLoadButtonState();
       })
     );
-    ui.params.cpuOffloadCheckbox.addEventListener(
-      "change",
-      updateLoadButtonState
+    [ui.params.cpuOffloadCheckbox, ui.params.vaeTilingCheckbox].forEach((el) =>
+      el.addEventListener("change", updateLoadButtonState)
     );
 
     ui.generate.btn.addEventListener("click", () => {
@@ -481,7 +566,9 @@ document.addEventListener("DOMContentLoaded", () => {
         seed: parseInt(ui.params.seedInput.value),
         width: parseInt(ui.params.widthSlider.value),
         height: parseInt(ui.params.heightSlider.value),
-        lora_weight: parseFloat(ui.lora.weightSlider.value),
+        lora_weight: ui.lora.toggle.checked
+          ? parseFloat(ui.lora.weightSlider.value)
+          : 0,
       });
     });
 
@@ -554,9 +641,19 @@ document.addEventListener("DOMContentLoaded", () => {
     ui.lightbox.closeBtn.addEventListener("click", closeLightbox);
     ui.lightbox.deleteBtn.addEventListener("click", () => {
       const filename = ui.lightbox.caption.textContent;
-      if (confirm(`Are you sure you want to permanently delete ${filename}?`)) {
-        sendMessage("delete_image", { filename });
-      }
+      const buttons = [
+        { text: "Cancel" },
+        {
+          text: "Delete",
+          class: "btn-danger",
+          callback: () => sendMessage("delete_image", { filename }),
+        },
+      ];
+      showDialog(
+        "Confirm Deletion",
+        `Are you sure you want to permanently delete <strong>${filename}</strong>? This action cannot be undone.`,
+        buttons
+      );
     });
     ui.lightbox.container.addEventListener("click", (e) => {
       if (e.target === ui.lightbox.container) closeLightbox();
@@ -625,7 +722,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const generationControls = document
         .getElementById("page-generate")
-        .querySelectorAll("button, input, textarea, .custom-dropdown");
+        .querySelectorAll(
+          "button, input, textarea, .custom-dropdown, .lora-switch"
+        );
       ui.busyControls = Array.from(generationControls).filter(
         (el) => !el.closest(".image-actions-overlay")
       );
