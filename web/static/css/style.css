@@ -249,6 +249,7 @@ body {
 .compact-info-card .material-symbols-outlined {
      transition: color 0.2s ease;
      font-size: 1.25rem;
+     color: var(--teal-700);
 }
 
 .compact-info-card .icon-unloaded {
@@ -522,6 +523,15 @@ body {
 .btn-secondary:hover:not(:disabled) {
      background-color: #d1d5db;
      border-color: #cbd5e1;
+}
+
+.btn-danger {
+     background-color: var(--status-red);
+     color: var(--white);
+}
+
+.btn-danger:hover:not(:disabled) {
+     background-color: #c0392b;
 }
 
 .btn-icon {
@@ -934,6 +944,109 @@ body {
 
 .lightbox-nav.next {
      right: 1rem;
+}
+
+.switch-label {
+     position: relative;
+     display: inline-block;
+     width: 38px;
+     height: 22px;
+}
+
+.switch-label input {
+     opacity: 0;
+     width: 0;
+     height: 0;
+}
+
+.switch-slider {
+     position: absolute;
+     cursor: pointer;
+     top: 0;
+     left: 0;
+     right: 0;
+     bottom: 0;
+     background-color: var(--medium-gray);
+     transition: .4s;
+     border-radius: 22px;
+}
+
+.switch-slider:before {
+     position: absolute;
+     content: "";
+     height: 16px;
+     width: 16px;
+     left: 3px;
+     bottom: 3px;
+     background-color: white;
+     transition: .4s;
+     border-radius: 50%;
+}
+
+input:checked+.switch-slider {
+     background-color: var(--teal-500);
+}
+
+input:checked+.switch-slider:before {
+     transform: translateX(16px);
+}
+
+.dialog-overlay {
+     position: fixed;
+     inset: 0;
+     background-color: rgba(15, 23, 42, 0.6);
+     backdrop-filter: blur(4px);
+     z-index: 2000;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     opacity: 0;
+     transition: opacity 0.2s ease-in-out;
+     pointer-events: none;
+}
+
+.dialog-overlay:not(.hidden) {
+     opacity: 1;
+     pointer-events: auto;
+}
+
+.dialog-box {
+     background: var(--white);
+     padding: 1.5rem;
+     border-radius: 0.75rem;
+     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+     width: 100%;
+     max-width: 400px;
+     transform: scale(0.95);
+     transition: transform 0.2s ease-in-out;
+}
+
+.dialog-overlay:not(.hidden) .dialog-box {
+     transform: scale(1);
+}
+
+.dialog-title {
+     font-family: 'Silkscreen', cursive;
+     color: var(--slate-800);
+     margin: 0 0 0.5rem 0;
+}
+
+.dialog-message {
+     color: var(--dark-gray);
+     margin: 0 0 1.5rem 0;
+     font-size: 0.9rem;
+     line-height: 1.5;
+}
+
+.dialog-buttons {
+     display: flex;
+     justify-content: flex-end;
+     gap: 0.5rem;
+}
+
+.dialog-buttons .btn {
+     height: 2.25rem;
+     font-size: 0.8rem;
 }
 
 @media (max-width: 1280px) {
