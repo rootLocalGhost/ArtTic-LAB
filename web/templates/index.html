@@ -16,7 +16,6 @@
 </head>
 
 <body>
-     <!-- Top Navigation Bar -->
      <header class="top-navbar">
           <div class="nav-left">
                <div class="logo-brand">
@@ -36,12 +35,9 @@
           </div>
      </header>
 
-     <!-- Main Content Area -->
      <main class="main-content">
-          <!-- Generate Page Content -->
           <div id="page-generate" class="page-content">
                <div class="grid-container">
-                    <!-- Left Column -->
                     <div class="control-column">
                          <div class="content-card">
                               <h2 class="card-title">Model & Sampler</h2>
@@ -67,7 +63,6 @@
                                         id="unload-model-btn" class="btn btn-secondary"><span
                                              class="material-symbols-outlined">cancel</span> Unload</button></div>
                          </div>
-                         <!-- NEW: LoRA Card -->
                          <div class="content-card">
                               <h2 class="card-title">LoRA</h2>
                               <div class="control-group">
@@ -99,7 +94,6 @@
                          </div>
                     </div>
 
-                    <!-- Middle Column -->
                     <div class="parameters-column">
                          <div class="content-card">
                               <h2 class="card-title">Parameters</h2>
@@ -141,7 +135,6 @@
                                              class="btn btn-aspect-ratio" data-ratio="3:2">3:2</button><button
                                              class="btn btn-aspect-ratio" data-ratio="16:9">16:9</button></div>
                               </div>
-
                               <div class="control-group checkbox-group">
                                    <label class="checkbox-label"><input type="checkbox" id="vae-tiling-checkbox"
                                              checked><span>VAE Tiling</span></label>
@@ -157,22 +150,25 @@
                          </div>
                     </div>
 
-                    <!-- Right Column -->
                     <div class="generation-column">
                          <div class="image-preview-area">
-                              <div class="image-preview-wrapper">
+                              <div id="image-preview-wrapper" class="image-preview-wrapper">
                                    <div id="image-placeholder" class="image-placeholder"><span
                                              class="material-symbols-outlined">wallpaper</span>
                                         <p>Your creation appears here</p>
                                    </div>
                                    <img id="output-image" src="" alt="Generated Image"
                                         class="image-preview-image hidden" />
-                                   <div class="image-actions-overlay"><a id="download-btn" class="image-action-btn"
-                                             download title="Download Image"><span
-                                                  class="material-symbols-outlined">download</span></a><a
-                                             id="open-new-tab-btn" class="image-action-btn" target="_blank"
+                                   <div class="image-actions-overlay">
+                                        <button id="view-btn" class="image-action-btn" title="View Image"><span
+                                                  class="material-symbols-outlined">fullscreen</span></button>
+                                        <a id="download-btn" class="image-action-btn" download
+                                             title="Download Image"><span
+                                                  class="material-symbols-outlined">download</span></a>
+                                        <a id="open-new-tab-btn" class="image-action-btn" target="_blank"
                                              title="Open in New Tab"><span
-                                                  class="material-symbols-outlined">open_in_new</span></a></div>
+                                                  class="material-symbols-outlined">open_in_new</span></a>
+                                   </div>
                               </div>
                               <div id="progress-container" class="progress-container hidden">
                                    <div class="flex-between">
@@ -191,7 +187,6 @@
                </div>
           </div>
 
-          <!-- Gallery Page Content -->
           <div id="page-gallery" class="page-content hidden">
                <div class="gallery-header">
                     <h1 class="gallery-title">Your Generations</h1><button id="refresh-gallery-btn"
@@ -206,11 +201,27 @@
           </div>
      </main>
 
-     <!-- Lightbox -->
      <div id="lightbox" class="lightbox hidden">
-          <span id="lightbox-close" class="lightbox-close">&times;</span>
-          <img class="lightbox-content" id="lightbox-img">
-          <div id="lightbox-caption" class="lightbox-caption"></div>
+          <div class="lightbox-header">
+               <p id="lightbox-caption" class="lightbox-caption"></p>
+               <div class="lightbox-actions">
+                    <button id="lightbox-zoom-out" title="Zoom Out"><span
+                              class="material-symbols-outlined">zoom_out</span></button>
+                    <button id="lightbox-zoom-in" title="Zoom In"><span
+                              class="material-symbols-outlined">zoom_in</span></button>
+                    <button id="lightbox-fit" title="Fit to Screen"><span
+                              class="material-symbols-outlined">fit_screen</span></button>
+                    <button id="lightbox-close" title="Close"><span
+                              class="material-symbols-outlined">close</span></button>
+               </div>
+          </div>
+          <button id="lightbox-prev" class="lightbox-nav prev" title="Previous Image"><span
+                    class="material-symbols-outlined">arrow_back_ios</span></button>
+          <div id="lightbox-image-wrapper">
+               <img id="lightbox-img" src="" alt="Lightbox Image" />
+          </div>
+          <button id="lightbox-next" class="lightbox-nav next" title="Next Image"><span
+                    class="material-symbols-outlined">arrow_forward_ios</span></button>
      </div>
 </body>
 <script src="/static/js/main.js"></script>
