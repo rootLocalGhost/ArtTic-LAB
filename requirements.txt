@@ -1,0 +1,12 @@
+# Core AI and model handling libraries
+diffusers
+huggingface-hub
+safetensors
+
+# Gradio UI framework
+gradio
+
+# Custom Web UI framework and server
+fastapi
+uvicorn
+Jinja2
