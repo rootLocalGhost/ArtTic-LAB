@@ -275,26 +275,21 @@ def load_model(
         app_state["current_model_name"] = model_name
         app_state["current_cpu_offload_state"] = cpu_offload
 
-        model_type_map = {
-            ArtTicFLUXPipeline: "FLUX Schnell" if pipe.is_schnell else "FLUX Dev",
-            SD3Pipeline: "SD3",
-            SDXLPipeline: "SDXL",
-            SD2Pipeline: "SD 2.x",
-        }
-        res_map = {
-            ArtTicFLUXPipeline: 1024,
-            SD3Pipeline: 1024,
-            SDXLPipeline: 1024,
-            SD2Pipeline: 768,
-        }
-
-        model_type = "SD 1.5"
-        for cls, name in model_type_map.items():
-            if isinstance(pipe, cls):
-                model_type = name
-                break
-
-        default_res = res_map.get(type(pipe), 512)
+        if isinstance(pipe, ArtTicFLUXPipeline):
+            model_type = "FLUX Schnell" if pipe.is_schnell else "FLUX Dev"
+            default_res = 1024
+        elif isinstance(pipe, SD3Pipeline):
+            model_type = "SD3"
+            default_res = 1024
+        elif isinstance(pipe, SDXLPipeline):
+            model_type = "SDXL"
+            default_res = 1024
+        elif isinstance(pipe, SD2Pipeline):
+            model_type = "SD 2.x"
+            default_res = 768
+        else:
+            model_type = "SD 1.5"
+            default_res = 512
 
         status_suffix = "(CPU Offload)" if cpu_offload else ""
         lora_suffix = (
