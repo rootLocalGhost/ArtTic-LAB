@@ -7,15 +7,20 @@ import contextlib
 import signal
 import random
 import torch
+import warnings
 from helpers.cli_manager import setup_logging, log_system_info, APP_LOGGER_NAME
 from core.logic import (
     SCHEDULER_MAP,
     get_available_models,
     get_available_loras,
     get_output_images,
-)  # NEW: import get_available_loras
+)
 
-# --- Argument Parsing ---
+warnings.filterwarnings(
+    "ignore",
+    message="You have disabled the safety checker for <class 'diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline'>.*",
+)
+
 parser = argparse.ArgumentParser(
     description="ArtTic-LAB: A clean UI for Intel ARC GPUs."
 )
@@ -41,12 +46,10 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-# --- Initial Setup ---
 setup_logging(disable_filters=args.disable_filters)
 logger = logging.getLogger(APP_LOGGER_NAME)
 
 
-# --- Graceful Shutdown ---
 def signal_handler(sig, frame):
     print("\n")
     logger.info("Ctrl+C detected. Shutting down ArtTic-LAB gracefully...")
@@ -56,23 +59,20 @@ def signal_handler(sig, frame):
 signal.signal(signal.SIGINT, signal_handler)
 
 
-# --- Gradio UI Launcher ---
 def launch_gradio():
-    """Initializes and launches the Gradio user interface."""
     import gradio as gr
     from ui import create_ui
     from core import logic as core
 
     logger.info("Launching Gradio UI...")
 
-    # Wrapper functions (handlers) that adapt core logic for Gradio
     def load_model_handler_gr(
         model_name,
         scheduler_name,
         vae_tiling,
         cpu_offload,
         lora_name,
-        progress=gr.Progress(),  # NEW: Added lora_name
+        progress=gr.Progress(),
     ):
         try:
             result = core.load_model(
@@ -80,7 +80,7 @@ def launch_gradio():
                 scheduler_name,
                 vae_tiling,
                 cpu_offload,
-                lora_name,  # NEW: Pass lora_name
+                lora_name,
                 progress_callback=lambda p, d: progress(p, desc=d),
             )
             return (
@@ -99,7 +99,7 @@ def launch_gradio():
         seed,
         width,
         height,
-        lora_weight,  # NEW: Added lora_weight
+        lora_weight,
         progress=gr.Progress(),
     ):
         if not core.app_state["is_model_loaded"]:
@@ -113,10 +113,9 @@ def launch_gradio():
                 seed,
                 width,
                 height,
-                lora_weight,  # NEW: Pass lora_weight
+                lora_weight,
                 progress_callback=lambda p, d: progress(p, desc=d),
             )
-            # Gradio's gr.Image needs a file path or PIL image
             image_path = os.path.join("./outputs", result["image_filename"])
             return image_path, result["info"]
         except Exception as e:
@@ -127,7 +126,6 @@ def launch_gradio():
         logger.info("Refreshing model list...")
         return gr.Dropdown(choices=core.get_available_models())
 
-    # NEW: Handler to refresh the LoRA list
     def refresh_loras_handler_gr():
         logger.info("Refreshing LoRA list...")
         return gr.Dropdown(choices=["None"] + core.get_available_loras())
@@ -142,8 +140,6 @@ def launch_gradio():
     def randomize_seed_handler_gr():
         return random.randint(0, 2**32 - 1)
 
-    # Gradio doesn't need a VAE tiling handler, it's passed at load time.
-    # We pass a dummy lambda to prevent errors.
     handlers = {
         "load_model": load_model_handler_gr,
         "generate_image": generate_image_handler_gr,
@@ -151,14 +147,13 @@ def launch_gradio():
             os.path.join("./outputs", f) for f in core.get_output_images()
         ],
         "refresh_models": refresh_models_handler_gr,
-        "refresh_loras": refresh_loras_handler_gr,  # NEW
+        "refresh_loras": refresh_loras_handler_gr,
         "randomize_seed": randomize_seed_handler_gr,
         "swap_dims": swap_dimensions_handler_gr,
         "unload_model": unload_model_handler_gr,
         "toggle_vae_tiling": lambda: None,
     }
 
-    # NEW: Pass available LoRAs to the UI creation function
     app = create_ui(
         get_available_models(),
         get_available_loras(),
@@ -173,9 +168,7 @@ def launch_gradio():
     app.launch(server_name=args.host, server_port=args.port, share=args.share)
 
 
-# --- Custom Web UI Launcher ---
 def launch_web_ui():
-    """Initializes and launches the custom FastAPI web interface."""
     try:
         import uvicorn
         from web.server import app as fastapi_app
@@ -195,17 +188,14 @@ def launch_web_ui():
     server.run()
 
 
-# --- Main Execution ---
 if __name__ == "__main__":
     if not args.disable_filters:
         os.system("cls" if os.name == "nt" else "clear")
     os.makedirs("./outputs", exist_ok=True)
 
-    # Log system info once at the start
     log_system_info()
 
-    # Launch the selected UI
     if args.ui == "gradio":
         launch_gradio()
-    else:  # Default to custom
+    else:
         launch_web_ui()
