@@ -2,6 +2,7 @@
 diffusers
 huggingface-hub
 safetensors
+transformers
 
 # Gradio UI framework
 gradio
