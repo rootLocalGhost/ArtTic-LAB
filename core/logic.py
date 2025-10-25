@@ -4,6 +4,8 @@ import os
 import time
 import random
 import logging
+import math
+import re
 from glob import glob
 from diffusers import (
     EulerAncestralDiscreteScheduler,
@@ -19,6 +21,11 @@ from pipelines.sd2_pipeline import SD2Pipeline
 from pipelines.sd3_pipeline import SD3Pipeline
 from pipelines.flux_pipeline import ArtTicFLUXPipeline
 
+
+class OOMError(Exception):
+    pass
+
+
 app_state = {
     "current_pipe": None,
     "current_model_name": "",
@@ -26,6 +33,7 @@ app_state = {
     "is_model_loaded": False,
     "status_message": "No model loaded.",
     "current_cpu_offload_state": False,
+    "current_vae_tiling_state": True,
     "current_model_type": "",
     "default_width": 512,
     "default_height": 512,
@@ -69,6 +77,22 @@ def get_output_images():
         os.path.basename(f)
         for f in sorted(glob(outputs_path), key=os.path.getmtime, reverse=True)
     ]
+
+
+def _get_next_image_number():
+    files = get_output_images()
+    if not files:
+        return 1
+
+    highest_num = 0
+    pattern = re.compile(r"ArtTic-LAB_(\d+)\.png")
+    for f in files:
+        match = pattern.match(f)
+        if match:
+            num = int(match.group(1))
+            if num > highest_num:
+                highest_num = num
+    return highest_num + 1
 
 
 def delete_image(filename):
@@ -117,6 +141,7 @@ def unload_model():
             "is_model_loaded": False,
             "status_message": "No model loaded.",
             "current_cpu_offload_state": False,
+            "current_vae_tiling_state": True,
             "current_model_type": "",
             "default_width": 512,
             "default_height": 512,
@@ -127,6 +152,48 @@ def unload_model():
 
     logger.info("Model unloaded and VRAM cache cleared.")
     return {"status_message": app_state["status_message"]}
+
+
+def _calculate_max_resolution(model_type):
+    if not torch.xpu.is_available():
+        return 1024
+
+    GB = 1024**3
+    total_mem = torch.xpu.get_device_properties(0).total_memory / GB
+    reserved_mem = torch.xpu.memory_reserved(0) / GB
+    free_mem = total_mem - reserved_mem
+
+    vram_per_megapixel = {
+        "SD 1.5": 0.9,
+        "SD 2.x": 1.2,
+        "SDXL": 2.5,
+        "SD3": 3.0,
+        "FLUX Dev": 3.2,
+        "FLUX Schnell": 2.8,
+    }.get(model_type, 1.5)
+
+    base_res_mp = {
+        "SD 1.5": 0.26,
+        "SD 2.x": 0.59,
+    }.get(model_type, 1.05)
+
+    try:
+        # Give a 250MB safety buffer
+        effective_free_mem = max(0, free_mem - 0.25)
+
+        # Max megapixels we can generate with the remaining memory
+        max_additional_mp = effective_free_mem / vram_per_megapixel
+        total_mp = base_res_mp + max_additional_mp
+
+        # Convert megapixels back to a square dimension
+        side_length = math.sqrt(total_mp * 1024 * 1024)
+
+        # Round down to the nearest multiple of 64
+        max_res = int(side_length // 64 * 64)
+
+        return max(512, min(4096, max_res))  # Clamp to a reasonable range
+    except Exception:
+        return 1024
 
 
 def load_model(
@@ -147,15 +214,19 @@ def load_model(
         and app_state["current_model_name"] == model_name
         and app_state["current_lora_name"] == lora_name
         and app_state["current_cpu_offload_state"] == cpu_offload
+        and app_state["current_vae_tiling_state"] == vae_tiling
     ):
         logger.info(
             f"Model '{model_name}' with the same configuration is already loaded. Skipping."
         )
+        max_res_vram = _calculate_max_resolution(app_state["current_model_type"])
         return {
             "status_message": app_state["status_message"],
             "model_type": app_state["current_model_type"],
             "width": app_state["default_width"],
             "height": app_state["default_height"],
+            "max_res_vram": max_res_vram,
+            "max_res_offload": 2048,
         }
 
     def update_progress(progress, desc):
@@ -170,7 +241,7 @@ def load_model(
         update_progress(0, f"Getting pipeline for {model_name}...")
 
         pipe = get_pipeline_for_model(model_name)
-        pipe.load_pipeline(lambda progress, desc: update_progress(progress, desc))
+        pipe.load_pipeline(lambda p, d: update_progress(p, d))
         pipe.place_on_device(use_cpu_offload=cpu_offload)
 
         if lora_name:
@@ -186,7 +257,7 @@ def load_model(
         else:
             app_state["current_lora_name"] = ""
 
-        pipe.optimize_with_ipex(lambda progress, desc: update_progress(progress, desc))
+        pipe.optimize_with_ipex(lambda p, d: update_progress(p, d))
 
         if not isinstance(pipe, (SD3Pipeline, ArtTicFLUXPipeline)):
             logger.info(f"Setting scheduler to: {scheduler_name}")
@@ -195,7 +266,7 @@ def load_model(
 
         if not isinstance(pipe, ArtTicFLUXPipeline):
             if vae_tiling:
-                logger.info("Enabling VAE Slicing & Tiling for memory efficiency.")
+                logger.info("Enabling VAE Slicing & Tiling.")
                 pipe.pipe.enable_vae_slicing()
                 pipe.pipe.enable_vae_tiling()
             else:
@@ -205,21 +276,32 @@ def load_model(
         else:
             logger.info("VAE Tiling is not applicable for FLUX models.")
 
+        app_state["current_vae_tiling_state"] = vae_tiling
+
         app_state["current_pipe"] = pipe
         app_state["current_model_name"] = model_name
         app_state["current_cpu_offload_state"] = cpu_offload
 
-        if isinstance(pipe, ArtTicFLUXPipeline):
-            model_type = "FLUX Schnell" if pipe.is_schnell else "FLUX Dev"
-            default_res = 1024
-        elif isinstance(pipe, SD3Pipeline):
-            default_res, model_type = 1024, "SD3"
-        elif isinstance(pipe, SDXLPipeline):
-            default_res, model_type = 1024, "SDXL"
-        elif isinstance(pipe, SD2Pipeline):
-            default_res, model_type = 768, "SD 2.x"
-        else:
-            default_res, model_type = 512, "SD 1.5"
+        model_type_map = {
+            ArtTicFLUXPipeline: "FLUX Schnell" if pipe.is_schnell else "FLUX Dev",
+            SD3Pipeline: "SD3",
+            SDXLPipeline: "SDXL",
+            SD2Pipeline: "SD 2.x",
+        }
+        res_map = {
+            ArtTicFLUXPipeline: 1024,
+            SD3Pipeline: 1024,
+            SDXLPipeline: 1024,
+            SD2Pipeline: 768,
+        }
+
+        model_type = "SD 1.5"
+        for cls, name in model_type_map.items():
+            if isinstance(pipe, cls):
+                model_type = name
+                break
+
+        default_res = res_map.get(type(pipe), 512)
 
         status_suffix = "(CPU Offload)" if cpu_offload else ""
         lora_suffix = (
@@ -231,22 +313,30 @@ def load_model(
             f"Ready: {model_name} ({model_type}){lora_suffix} {status_suffix}"
         )
 
-        app_state["status_message"] = status_message
-        app_state["is_model_loaded"] = True
-        app_state["current_model_type"] = model_type
-        app_state["default_width"] = default_res
-        app_state["default_height"] = default_res
+        app_state.update(
+            {
+                "status_message": status_message,
+                "is_model_loaded": True,
+                "current_model_type": model_type,
+                "default_width": default_res,
+                "default_height": default_res,
+            }
+        )
 
         logger.info(
             f"Model '{model_name}' is ready! Type: {model_type} {status_suffix}."
         )
         update_progress(1, "Model Ready!")
 
+        max_res_vram = _calculate_max_resolution(model_type)
+
         return {
             "status_message": status_message,
             "model_type": model_type,
             "width": default_res,
             "height": default_res,
+            "max_res_vram": max_res_vram,
+            "max_res_offload": 2048,
         }
     except Exception as e:
         logger.error(
@@ -274,7 +364,6 @@ def generate_image(
 
     logger.info("Starting image generation...")
     start_time = time.time()
-
     seed = int(seed if seed is not None else random.randint(0, 2**32 - 1))
     generator = torch.Generator("xpu").manual_seed(seed)
 
@@ -303,14 +392,20 @@ def generate_image(
     if negative_prompt and negative_prompt.strip():
         gen_kwargs["negative_prompt"] = negative_prompt
 
-    image = app_state["current_pipe"].generate(**gen_kwargs).images[0]
+    try:
+        image = app_state["current_pipe"].generate(**gen_kwargs).images[0]
+    except torch.OutOfMemoryError as e:
+        torch.xpu.empty_cache()
+        logger.error(f"XPU Out of Memory during generation: {e}")
+        raise OOMError(
+            "Your GPU ran out of memory while generating the image. Try reducing the resolution or steps."
+        )
+
     generation_time = time.time() - start_time
     logger.info(f"Generation completed in {generation_time:.2f} seconds.")
 
     os.makedirs("./outputs", exist_ok=True)
-    filename = (
-        f"{time.strftime('%Y%m%d-%H%M%S')}_{app_state['current_model_name']}_{seed}.png"
-    )
+    filename = f"ArtTic-LAB_{_get_next_image_number()}.png"
     filepath = os.path.join("./outputs", filename)
     image.save(filepath)
 
