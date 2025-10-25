@@ -131,6 +131,7 @@ document.addEventListener("DOMContentLoaded", () => {
       zoomInBtn: document.getElementById("lightbox-zoom-in"),
       zoomOutBtn: document.getElementById("lightbox-zoom-out"),
       fitBtn: document.getElementById("lightbox-fit"),
+      deleteBtn: document.getElementById("lightbox-delete"),
     },
     busyControls: [],
   };
@@ -203,6 +204,21 @@ document.addEventListener("DOMContentLoaded", () => {
       ui.progress.barFill.style.width = `${percent}%`;
     },
     gallery_updated: (data) => populateGallery(data.images),
+    image_deleted: (data) => {
+      if (data.status === "success") {
+        const deletedFilename = ui.lightbox.caption.textContent;
+        if (ui.generate.outputImage.src.includes(deletedFilename)) {
+          ui.generate.outputImage.src = "";
+          ui.generate.outputImage.classList.add("hidden");
+          ui.generate.wrapper.classList.remove("has-image");
+          ui.generate.imagePlaceholder.classList.remove("hidden");
+          ui.generate.wrapper.style.aspectRatio = "1 / 1";
+        }
+        closeLightbox();
+      } else {
+        alert(`Could not delete image: ${data.message}`);
+      }
+    },
     error: (data) => {
       alert(`An error occurred: ${data.message}`);
       setBusyState(false);
@@ -358,12 +374,14 @@ document.addEventListener("DOMContentLoaded", () => {
       imageUrl = `/outputs/${caption}`;
       ui.lightbox.prevBtn.style.display = "block";
       ui.lightbox.nextBtn.style.display = "block";
+      ui.lightbox.deleteBtn.style.display = "block";
     } else {
-      state.currentLightboxIndex = -1; // Not in gallery
+      state.currentLightboxIndex = -1;
       imageUrl = ui.generate.outputImage.src;
-      caption = "Generated Image";
+      caption = imageUrl.split("/").pop().split("?")[0];
       ui.lightbox.prevBtn.style.display = "none";
       ui.lightbox.nextBtn.style.display = "none";
+      ui.lightbox.deleteBtn.style.display = "block";
     }
 
     ui.lightbox.img.src = imageUrl;
@@ -415,7 +433,6 @@ document.addEventListener("DOMContentLoaded", () => {
     ui.nav.links.forEach((link) => {
       link.addEventListener("click", (e) => {
         e.preventDefault();
-        if (state.isBusy && link.dataset.target !== "gallery") return;
         ui.nav.links.forEach((l) => l.classList.remove("active"));
         link.classList.add("active");
         Object.values(ui.pages).forEach((page) => page.classList.add("hidden"));
@@ -468,6 +485,13 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
 
+    ui.generate.outputImage.onload = () => {
+      const img = ui.generate.outputImage;
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+        ui.generate.wrapper.style.aspectRatio = `${img.naturalWidth} / ${img.naturalHeight}`;
+      }
+    };
+
     ui.params.randomizeSeedBtn.addEventListener("click", () => {
       ui.params.seedInput.value = Math.floor(Math.random() * 2 ** 32);
     });
@@ -516,8 +540,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     ui.generate.wrapper.addEventListener("click", (e) => {
       if (
-        e.target !== ui.generate.viewBtn &&
-        ui.generate.wrapper.classList.contains("has-image")
+        ui.generate.wrapper.classList.contains("has-image") &&
+        e.target.closest(".image-action-btn") === null
       )
         openLightbox(null);
     });
@@ -528,6 +552,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     ui.lightbox.closeBtn.addEventListener("click", closeLightbox);
+    ui.lightbox.deleteBtn.addEventListener("click", () => {
+      const filename = ui.lightbox.caption.textContent;
+      if (confirm(`Are you sure you want to permanently delete ${filename}?`)) {
+        sendMessage("delete_image", { filename });
+      }
+    });
     ui.lightbox.container.addEventListener("click", (e) => {
       if (e.target === ui.lightbox.container) closeLightbox();
     });
@@ -549,6 +579,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     ui.lightbox.imageWrapper.addEventListener("mousedown", (e) => {
       if (e.button !== 0) return;
+      e.preventDefault();
       state.isPanning = true;
       state.panStart = {
         x: e.clientX - state.panCurrent.x,
@@ -558,13 +589,16 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     window.addEventListener("mousemove", (e) => {
       if (!state.isPanning) return;
+      e.preventDefault();
       state.panCurrent = {
         x: e.clientX - state.panStart.x,
         y: e.clientY - state.panStart.y,
       };
       updateImageTransform();
     });
-    window.addEventListener("mouseup", () => {
+    window.addEventListener("mouseup", (e) => {
+      if (!state.isPanning) return;
+      e.preventDefault();
       state.isPanning = false;
       ui.lightbox.imageWrapper.style.cursor = "grab";
     });
