@@ -17,20 +17,20 @@ from pipelines import get_pipeline_for_model
 from pipelines.sdxl_pipeline import SDXLPipeline
 from pipelines.sd2_pipeline import SD2Pipeline
 from pipelines.sd3_pipeline import SD3Pipeline
-
-# CORRECTED: Import the new unified FLUX pipeline class
 from pipelines.flux_pipeline import ArtTicFLUXPipeline
 
-# --- Application State ---
 app_state = {
     "current_pipe": None,
     "current_model_name": "",
     "current_lora_name": "",
     "is_model_loaded": False,
     "status_message": "No model loaded.",
+    "current_cpu_offload_state": False,
+    "current_model_type": "",
+    "default_width": 512,
+    "default_height": 512,
 }
 
-# --- Constants ---
 APP_LOGGER_NAME = "arttic_lab"
 logger = logging.getLogger(APP_LOGGER_NAME)
 SCHEDULER_MAP = {
@@ -42,11 +42,8 @@ SCHEDULER_MAP = {
     "LMS": LMSDiscreteScheduler,
 }
 
-# --- Core Functions ---
-
 
 def get_config():
-    """Returns the initial configuration for the UI."""
     return {
         "models": get_available_models(),
         "loras": get_available_loras(),
@@ -56,20 +53,17 @@ def get_config():
 
 
 def get_available_models():
-    """Scans the models directory and returns a list of available model names."""
     models_path = os.path.join("./models", "*.safetensors")
     return [os.path.basename(p).replace(".safetensors", "") for p in glob(models_path)]
 
 
 def get_available_loras():
-    """Scans the loras directory and returns a list of available LoRA names."""
     os.makedirs("./loras", exist_ok=True)
     loras_path = os.path.join("./loras", "*.safetensors")
     return [os.path.basename(p).replace(".safetensors", "") for p in glob(loras_path)]
 
 
 def get_output_images():
-    """Returns a sorted list of generated images from the outputs directory."""
     outputs_path = os.path.join("./outputs", "*.png")
     return [
         os.path.basename(f)
@@ -78,7 +72,6 @@ def get_output_images():
 
 
 def unload_model():
-    """Unloads the current model from VRAM and clears the cache."""
     if not app_state["is_model_loaded"]:
         logger.info("Unload command received, but no model is currently loaded.")
         return {"status_message": "No model loaded."}
@@ -97,6 +90,10 @@ def unload_model():
             "current_lora_name": "",
             "is_model_loaded": False,
             "status_message": "No model loaded.",
+            "current_cpu_offload_state": False,
+            "current_model_type": "",
+            "default_width": 512,
+            "default_height": 512,
         }
     )
 
@@ -114,9 +111,26 @@ def load_model(
     lora_name,
     progress_callback=None,
 ):
-    """Loads a new model into memory, applying specified configurations and a LoRA."""
     if not model_name:
         raise ValueError("Please select a model from the dropdown.")
+
+    lora_name = lora_name if lora_name != "None" else ""
+
+    if (
+        app_state["is_model_loaded"]
+        and app_state["current_model_name"] == model_name
+        and app_state["current_lora_name"] == lora_name
+        and app_state["current_cpu_offload_state"] == cpu_offload
+    ):
+        logger.info(
+            f"Model '{model_name}' with the same configuration is already loaded. Skipping."
+        )
+        return {
+            "status_message": app_state["status_message"],
+            "model_type": app_state["current_model_type"],
+            "width": app_state["default_width"],
+            "height": app_state["default_height"],
+        }
 
     def update_progress(progress, desc):
         if progress_callback:
@@ -133,7 +147,7 @@ def load_model(
         pipe.load_pipeline(lambda progress, desc: update_progress(progress, desc))
         pipe.place_on_device(use_cpu_offload=cpu_offload)
 
-        if lora_name and lora_name != "None":
+        if lora_name:
             lora_path = os.path.join("./loras", f"{lora_name}.safetensors")
             if os.path.exists(lora_path):
                 logger.info(f"Loading LoRA: {lora_name}")
@@ -148,13 +162,11 @@ def load_model(
 
         pipe.optimize_with_ipex(lambda progress, desc: update_progress(progress, desc))
 
-        # CORRECTED: Simplified check for pipelines that manage their own schedulers
         if not isinstance(pipe, (SD3Pipeline, ArtTicFLUXPipeline)):
             logger.info(f"Setting scheduler to: {scheduler_name}")
             SchedulerClass = SCHEDULER_MAP[scheduler_name]
             pipe.pipe.scheduler = SchedulerClass.from_config(pipe.pipe.scheduler.config)
 
-        # CORRECTED: Simplified check for VAE tiling applicability
         if not isinstance(pipe, ArtTicFLUXPipeline):
             if vae_tiling:
                 logger.info("Enabling VAE Slicing & Tiling for memory efficiency.")
@@ -169,8 +181,8 @@ def load_model(
 
         app_state["current_pipe"] = pipe
         app_state["current_model_name"] = model_name
+        app_state["current_cpu_offload_state"] = cpu_offload
 
-        # CORRECTED: Logic to determine model type string and resolution
         if isinstance(pipe, ArtTicFLUXPipeline):
             model_type = "FLUX Schnell" if pipe.is_schnell else "FLUX Dev"
             default_res = 1024
@@ -195,6 +207,9 @@ def load_model(
 
         app_state["status_message"] = status_message
         app_state["is_model_loaded"] = True
+        app_state["current_model_type"] = model_type
+        app_state["default_width"] = default_res
+        app_state["default_height"] = default_res
 
         logger.info(
             f"Model '{model_name}' is ready! Type: {model_type} {status_suffix}."
@@ -211,14 +226,7 @@ def load_model(
         logger.error(
             f"Failed to load model '{model_name}'. Full error: {e}", exc_info=True
         )
-        app_state.update(
-            {
-                "current_pipe": None,
-                "current_model_name": "",
-                "is_model_loaded": False,
-                "current_lora_name": "",
-            }
-        )
+        unload_model()
         raise RuntimeError(
             f"Failed to load model '{model_name}'. Check logs for details."
         )
