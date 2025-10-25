@@ -10,13 +10,13 @@ The core mission of ArtTic-LAB is to provide a **simple, powerful, and highly-op
 
 Before we dive into the details, let's look at the high-level journey of a single image generation request.
 
-1.  **The User Interface (`ui.py`) 😊:** You interact with the Gradio UI, typing a prompt, moving sliders, and selecting a model. When you click "Generate," Gradio bundles up all these settings.
-2.  **The Conductor (`app.py`) 🧠:** Gradio sends the settings to a corresponding "handler" function in `app.py`. This file acts as the central brain, managing the application's state.
-3.  **The Pipeline Check 🕵️‍♀️:** `app.py` checks if the correct model pipeline (`current_pipe`) is loaded in memory.
-4.  **The Engine Room (`pipelines/`) 🏭:** The request is passed to the `current_pipe.generate()` method. This is a universal command that works regardless of the model type (SD1.5, SDXL, SD3, etc.).
-5.  **The GPU Workout (`torch` + `ipex`) 💪:** The pipeline, which has been heavily optimized by **Intel® Extension for PyTorch (IPEX)**, executes the generation steps on your Arc GPU (the "XPU"). It uses `bfloat16` precision for speed and memory savings.
-6.  **The Result 🖼️:** The pipeline returns the generated image to `app.py`.
-7.  **File & Feedback ✅:** `app.py` saves the image to the `./outputs` folder and sends the image and generation info back to the UI for you to see.
+1.  **The User Interface (`web/` and `ui.py`) 😊:** You interact with the UI, typing a prompt, moving sliders, and selecting a model. When you click "Generate," the frontend sends a structured message (JSON) over a WebSocket connection.
+2.  **The Asynchronous Conductor (`web/server.py` and `app.py`) 🧠:** The FastAPI server receives the WebSocket message. Instead of running the heavy AI task directly, it uses `asyncio.to_thread` to delegate the job to a background worker thread. **This is the key to a non-blocking UI.**
+3.  **The Engine Room (`core/logic.py`) 🏭:** In the background thread, the `generate_image` function is called. It prepares the generation parameters (like the seed and prompts) and passes them to the currently loaded pipeline object.
+4.  **The GPU Workout (`pipelines/`, `torch` + `ipex`) 💪:** The pipeline, which has been heavily optimized by **Intel® Extension for PyTorch (IPEX)**, executes the diffusion steps on your Arc GPU (the "XPU"). It uses `bfloat16` precision for speed and memory savings.
+5.  **Real-time Feedback 📈:** As the pipeline generates the image, it periodically calls a progress callback function. This function sends a message back over the WebSocket to the UI, which updates the progress bar in real-time.
+6.  **The Result 🖼️:** The pipeline returns the generated image.
+7.  **File & Feedback ✅:** The `core/logic` function saves the image to the `./outputs` folder with a new sequential name (`ArtTic-LAB_X.png`) and sends a final "generation complete" message back to the UI with the image details.
 
 Now, let's break down each of these components.
 
@@ -24,70 +24,38 @@ Now, let's break down each of these components.
 
 ## 🏛️ Core Components & Architecture
 
-### `app.py`: The Conductor 🧠
+### `app.py`: The Main Launcher 🚀
 
-This is the main application script. It ties everything together.
+This is the primary entry point of the application. Its main job is to parse command-line arguments, set up the environment (like the strict logging system), and launch the chosen user interface.
 
-*   **Technical Breakdown:**
-    *   It uses `argparse` to handle command-line arguments like `--disable-filters`.
-    *   It initializes our custom logging from `helpers/cli_manager.py`.
-    *   It holds the application's state in global variables, most importantly `current_pipe`, which stores the active model pipeline.
-    *   It contains all the **handler functions** (e.g., `load_model_handler`, `generate_image_handler`). These are the Python functions that are directly called by UI events (like button clicks).
-    *   It's responsible for the core logic: loading models, running generation, saving files, and managing the application lifecycle (e.g., graceful shutdown with `Ctrl+C`).
+### `web/server.py`: The Asynchronous Communications Hub 🧠
 
-*   **Easy Explanation:**
-    Think of `app.py` as the restaurant manager. The UI (`ui.py`) is the waiter who takes your order. The manager takes the order from the waiter, sends it to the correct chef in the kitchen (`pipelines/`), and ensures the final dish is prepared correctly and delivered back to your table. It manages everything behind the scenes.
+For the custom UI, this file is the true brain of the operation. It manages the web server and all real-time communication.
 
-### `ui.py`: The Friendly Face 😊
+- **Technical Breakdown:**
 
-This file defines the entire user interface.
+  - It's a **FastAPI** application that serves the main HTML page and static assets (CSS, JS).
+  - It hosts a **WebSocket endpoint** (`/ws`) which is the main communication channel between the frontend and backend.
+  - **The Non-Blocking Secret:** When a request for a long-running task arrives (like `load_model` or `generate_image`), it does **not** run the function directly. Instead, it wraps the call in `await asyncio.to_thread(...)`. This tells the Python `asyncio` event loop to run the synchronous, blocking function in a separate worker thread from the thread pool.
+  - This architecture allows the main server thread to remain free to handle other requests, such as serving gallery images or responding to UI pings, ensuring the interface never freezes.
 
-*   **Technical Breakdown:**
-    *   It's built entirely with the **Gradio** library.
-    *   The `create_ui` function builds the layout using `gr.Blocks`, `gr.Tabs`, `gr.Row`, `gr.Column`, etc.
-    *   It defines all the interactive components like `gr.Dropdown` for models, `gr.Slider` for steps, and `gr.Button` for actions.
-    *   Crucially, at the end of the file, it **wires up the components to the handlers** from `app.py`. For example, `generate_btn.click(fn=handlers["generate_image"], ...)` tells Gradio to call the `generate_image_handler` function when the "Generate" button is clicked.
-    *   It contains clever logic to dynamically update UI elements, like the aspect ratio buttons which check the `status_text` to know which resolutions (512, 768, or 1024) to apply.
+- **Easy Explanation:**
+  Think of the `web/server.py` as a highly efficient restaurant host. When a large group (a heavy AI task) arrives, the host doesn't get stuck seating them. They hand the group over to a capable waiter (a worker thread) and immediately turn to greet the next guest (another UI request). This keeps the front door clear and the restaurant running smoothly.
 
-*   **Easy Explanation:**
-    `ui.py` is the architect and interior designer of ArtTic-LAB. It lays out all the rooms (tabs), places all the furniture (buttons and sliders), and writes the instructions for what each light switch (button) should do. It's purely concerned with looks and user interaction.
+### `core/logic.py`: The Engine Room 🏭
 
-### The `pipelines/` Module: The Engine Room 🏭
+This file contains all the pure, UI-agnostic logic for the application. It handles model management, image generation, and file I/O. It's designed to be called by any interface, be it the custom web UI or the Gradio UI.
 
-This is the most complex and powerful part of the application. It's responsible for handling different types of Stable Diffusion models.
+- **Key Functions:**
+  - `load_model`: Now contains logic to prevent reloading an identical configuration.
+  - `generate_image`: Catches `torch.OutOfMemoryError`, converts it to a custom, user-friendly error, and ensures VRAM is cleared.
+  - `_get_next_image_number`: Scans the outputs directory to implement the `ArtTic-LAB_X.png` naming scheme.
+  - `delete_image`: Securely deletes an image from the outputs folder.
+  - `_calculate_max_resolution`: The new intelligence feature that estimates VRAM usage.
 
-#### `__init__.py`: The Smart Sorter 🕵️‍♀️
+### The `pipelines/` Module: The Specialists 🛠️
 
-This file contains the "secret sauce" for model detection.
-
-*   **Technical Breakdown:**
-    *   The `get_pipeline_for_model` function is the entry point.
-    *   It uses `safetensors.safe_open` to **peek inside the model file without loading the whole thing into memory**.
-    *   It reads the list of tensor keys (the names of the weight layers) and uses this to deduce the model architecture.
-        *   `_is_sd3`: Checks for keys starting with `transformer.`, which is unique to SD3's architecture.
-        *   `_is_xl`: Checks for the key `conditioner.embedders.1...`, which is part of SDXL's second text encoder.
-        *   `_is_v2`: Checks for a specific U-Net block key that exists in SD2.x but not SD1.5.
-    *   Based on these checks, it returns the correct pipeline object (`SD15Pipeline`, `SD2Pipeline`, `SDXLPipeline`, or `SD3Pipeline`).
-
-*   **Easy Explanation:**
-    Imagine you have a box of car engines but no labels. The Sorter opens a tiny inspection hatch on each engine and looks for a specific part. "Ah, this one has a turbocharger, it must be the `SDXLPipeline` engine!" "This one has a hybrid electric motor, it's the `SD3Pipeline` engine." It figures out what kind of model it is so the right tools can be used.
-
-#### `base_pipeline.py`: The Foundation 🏛️
-
-This is the parent class that all other pipelines inherit from. It contains the shared logic to avoid repeating code (this is the DRY principle: Don't Repeat Yourself).
-
-*   **Technical Breakdown:**
-    *   `__init__`: Sets up basic properties like the model path and data type (`dtype`).
-    *   `place_on_device`: This is the master switch for memory modes. Based on a boolean flag, it either calls `pipe.to("xpu")` to load the entire model into VRAM or `pipe.enable_model_cpu_offload()` to enable the low-VRAM mode.
-    *   `optimize_with_ipex`: This crucial method takes the loaded model and applies IPEX optimizations to the `unet`/`transformer` and the `vae`. It's smart enough to skip this step if CPU offloading is active.
-    *   `generate`: This is a simple wrapper that runs the actual generation inside a `torch.xpu.amp.autocast` context, which automatically enables `bfloat16` mixed-precision for performance.
-
-*   **Easy Explanation:**
-    This is the blueprint for a car chassis. Every car we build (`SD15`, `SDXL`, etc.) will use this same strong foundation. The blueprint already includes the mounting points for the engine, the process for tuning it (`optimize_with_ipex`), and the connection to the wheels (`generate`).
-
-#### `sd15_pipeline.py`, `sd2_pipeline.py`, `sdxl_pipeline.py`, `sd3_pipeline.py`: The Specialists 🛠️
-
-These are the simple, specialized classes. Their only job is to know which `diffusers` pipeline to load for their specific model type. For example, `sdxl_pipeline.py` knows it must load a `StableDiffusionXLPipeline`, while `sd15_pipeline.py` loads a `StableDiffusionPipeline`. The `sd3_pipeline.py` is unique because it first loads the base components from Hugging Face and then injects the user's local model weights.
+This module is responsible for handling different types of Stable Diffusion models. Its core architecture remains the same, but with a key improvement for a cleaner user experience: all pipeline loading functions now include `progress_bar_config={"disable": True}` to suppress unwanted terminal output from the `diffusers` library.
 
 ---
 
@@ -97,26 +65,31 @@ This is what makes ArtTic-LAB special. We use a combination of techniques to get
 
 ### 1. **IPEX (Intel® Extension for PyTorch) 🚀**
 
-*   **Technical:** IPEX is a library that deeply optimizes PyTorch code for Intel hardware. When we call `ipex.optimize()`, it performs graph fusion (merging multiple operations into one) and operator optimization (replacing standard operations with highly efficient versions written for XPU). It's a form of Just-In-Time (JIT) compilation that rewrites the model for maximum performance before we use it.
-*   **Easy:** IPEX is like a world-class Formula 1 race engineering team. You give them a standard car engine (the model), and they completely disassemble, retune, and reassemble it to be perfectly optimized for a specific race track (your Arc GPU). It runs much faster and more efficiently after they're done.
+_(This remains a core feature)_
+
+- **Technical:** IPEX is a library that deeply optimizes PyTorch code for Intel hardware. When we call `ipex.optimize()`, it performs graph fusion and operator optimization, rewriting the model for maximum performance.
+- **Easy:** IPEX is like a Formula 1 race engineering team that custom-tunes a standard engine for a specific race track (your Arc GPU).
 
 ### 2. **`bfloat16` Mixed Precision ⚖️**
 
-*   **Technical:** Traditionally, models use 32-bit floating point numbers (`float32`) for calculations. We use `torch.bfloat16`, a 16-bit format. It has a smaller precision part but the same exponent range as `float32`. This means it uses half the VRAM for model weights and is much faster for the XPU's hardware to process, without the risk of "underflow" that older `float16` could suffer from. The "mixed precision" part means some parts of the calculation are kept at `float32` for stability, which `torch.xpu.amp.autocast` handles automatically.
-*   **Easy:** Imagine you're doing math with very long decimal numbers (e.g., 3.1415926535). It's slow and takes up a lot of space on your paper. `bfloat16` is like intelligently rounding to 3.1416. It's much faster to calculate with and takes less space, but you still get the correct result in the end.
+_(This remains a core feature)_
 
-### 3. **Memory Management Features ✅**
+- **Technical:** We use `torch.bfloat16` and `torch.xpu.amp.autocast` to perform calculations in a 16-bit format, which uses half the VRAM and is much faster for the XPU hardware to process.
+- **Easy:** It's like intelligently rounding long decimal numbers during a complex calculation. It's faster and uses less space on your paper, but you still get the correct result.
 
-We've implemented several features to make ArtTic-LAB stable and flexible, especially for users with less VRAM.
+### 3. **Memory Management & Intelligence ✅**
 
-*   **VAE Tiling/Slicing 🖼️:**
-    *   **Technical:** The final step of generation is decoding the image from the latent space with the VAE. For high-resolution images, this can consume a massive amount of VRAM. VAE tiling splits the latent image into smaller tiles, decodes them one by one, and stitches the results together.
-    *   **Easy:** Instead of trying to develop a giant 8K photograph in a single chemical bath and overflowing the tray, you develop it section by section using a much smaller tray. It prevents a VRAM "spill."
+We've implemented a multi-layered approach to memory management, moving from reactive features to proactive intelligence.
 
-*   **Explicit Model Unloading 🗑️:**
-    *   **Technical:** When the "Unload Model" button is clicked, we `del` the `current_pipe` object to release its reference, and then crucially call `torch.xpu.empty_cache()`. This tells PyTorch to free up all reserved but unused memory on the GPU, making VRAM available for a new model.
-    *   **Easy:** This is like telling a program to not just close a huge file, but to also clear it from the "Recently Opened" list in its memory. It truly frees up the workspace for the next task.
+- **Proactive OOM Prevention & Guidance (New!)**
 
-*   **Model CPU Offloading 💾↔️💻:**
-    *   **Technical:** When enabled, `pipe.enable_model_cpu_offload()` is called. This keeps the model weights in system RAM. When a module (like the U-Net) is needed for a calculation, it's moved to the XPU's VRAM, used, and then immediately moved back to RAM, making space for the next module. This happens sequentially for every part of the model.
-    *   **Easy:** Imagine a chef with a very small workbench (VRAM) but a huge pantry (RAM). To bake a cake, they can't put all the ingredients on the workbench at once. So they bring out the flour and eggs, mix them, and put them away. Then they bring out the sugar and butter, mix them, and put them away. It's slower, but it allows them to bake a massive, complex cake even with a tiny workspace.
+  - **Technical:** When a model is loaded, the new `_calculate_max_resolution` function is called. It gets the total and reserved VRAM from `torch.xpu.get_device_properties(0)` and `torch.xpu.memory_reserved(0)`. It then uses a heuristic (a dictionary of `vram_per_megapixel` values tested for different model architectures) to estimate how many megapixels can be generated with the _free_ VRAM. This is converted back into a square resolution (e.g., 1536x1536) and sent to the UI.
+  - **Easy:** Before you try to lift a heavy box, you instinctively size it up to see if you can handle it. ArtTic-LAB now does the same for your GPU. It "looks" at the available VRAM, "estimates" the "weight" of the image you want to generate, and advises you on a safe limit to prevent you from "straining" your hardware (running out of memory).
+
+- **Graceful OOM Error Handling**
+
+  - **Technical:** If a generation still fails with an `OutOfMemoryError` (e.g., due to background processes or fragmentation), the `generate_image` function now has a `try...except` block to catch it. It immediately calls `torch.xpu.empty_cache()` to free up memory and raises a custom, clean `OOMError` that is sent to the UI as a user-friendly message.
+  - **Easy:** If you do try to lift a box that's too heavy and fail, you drop it safely instead of crashing to the floor. The app now does this, cleaning up the mess (clearing VRAM) and telling you what happened without breaking.
+
+- **VAE Tiling/Slicing & CPU Offloading**
+  - These existing features remain crucial. VAE Tiling prevents VRAM spikes during the final image decoding stage, while CPU Offloading allows users with less VRAM to generate images at the cost of speed. The UI now correctly handles these states, triggering a model reload when they are changed to ensure the setting is always active.
