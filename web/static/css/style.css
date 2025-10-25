@@ -222,7 +222,7 @@ body {
      font-size: 1rem;
      font-weight: 400;
      color: var(--slate-800);
-     margin: 0 0 1rem 0;
+     margin: 0;
      padding-bottom: 0.75rem;
      border-bottom: 1px solid var(--medium-gray);
 }
@@ -236,11 +236,9 @@ body {
 .compact-info-card {
      display: flex;
      align-items: center;
-     gap: 0.75rem;
-     padding: 0.75rem;
+     gap: 0.2rem;
      background-color: var(--light-gray);
      border-radius: 0.5rem;
-     margin-bottom: 1rem;
      font-size: 0.875rem;
      font-weight: 500;
      transition: all 0.2s ease;
@@ -264,10 +262,6 @@ body {
      color: var(--status-orange);
 }
 
-.control-group {
-     margin-bottom: 1rem;
-}
-
 .control-group:last-child {
      margin-bottom: 0;
 }
@@ -277,7 +271,6 @@ body {
      color: var(--slate-700);
      margin-bottom: 0.5rem;
      font-size: 0.8rem;
-     display: block;
 }
 
 .flex-between {
@@ -328,7 +321,7 @@ body {
 }
 
 .checkbox-group {
-     margin-bottom: 0.75rem;
+     margin-top: 0.75rem;
 }
 
 .checkbox-label {
