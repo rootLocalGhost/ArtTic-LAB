@@ -64,22 +64,31 @@
                                              class="material-symbols-outlined">cancel</span> Unload</button></div>
                          </div>
                          <div class="content-card">
-                              <h2 class="card-title">LoRA</h2>
-                              <div class="control-group">
-                                   <div class="flex-between">
-                                        <label for="lora-dropdown">LoRA (Optional)</label>
-                                        <button id="refresh-loras-btn" class="btn btn-icon btn-secondary"
-                                             style="width:2rem;height:2rem;" title="Refresh LoRAs"><span
-                                                  class="material-symbols-outlined"
-                                                  style="font-size: 1rem;">refresh</span></button>
-                                   </div>
-                                   <div id="lora-dropdown" class="custom-dropdown"></div>
+                              <div class="flex-between">
+                                   <h2 class="card-title" style="border-bottom: none; margin-bottom: 0;">LoRA</h2>
+                                   <label class="switch-label">
+                                        <input type="checkbox" id="lora-toggle" class="lora-switch">
+                                        <span class="switch-slider"></span>
+                                   </label>
                               </div>
-                              <div class="control-group">
-                                   <div class="flex-between"><label for="lora-weight-slider">LoRA Weight</label><span
-                                             class="slider-value" id="lora-weight-value">0.7</span></div>
-                                   <div class="slider-container"><input type="range" id="lora-weight-slider"
-                                             class="range-input" min="0" max="1.0" value="0.7" step="0.05"></div>
+                              <div id="lora-options-container" class="hidden">
+                                   <div class="control-group" style="margin-top: 1rem;">
+                                        <div class="flex-between">
+                                             <label for="lora-dropdown">LoRA (Optional)</label>
+                                             <button id="refresh-loras-btn" class="btn btn-icon btn-secondary"
+                                                  style="width:2rem;height:2rem;" title="Refresh LoRAs"><span
+                                                       class="material-symbols-outlined"
+                                                       style="font-size: 1rem;">refresh</span></button>
+                                        </div>
+                                        <div id="lora-dropdown" class="custom-dropdown"></div>
+                                   </div>
+                                   <div class="control-group">
+                                        <div class="flex-between"><label for="lora-weight-slider">LoRA
+                                                  Weight</label><span class="slider-value"
+                                                  id="lora-weight-value">0.7</span></div>
+                                        <div class="slider-container"><input type="range" id="lora-weight-slider"
+                                                  class="range-input" min="0" max="1.0" value="0.7" step="0.05"></div>
+                                   </div>
                               </div>
                          </div>
                          <div class="content-card">
@@ -116,6 +125,10 @@
                                                   class="material-symbols-outlined">casino</span></button></div>
                               </div>
                               <h2 class="card-title sub-title">Dimensions</h2>
+                              <div id="resolution-guidance" class="compact-info-card hidden">
+                                   <span class="material-symbols-outlined">recommend</span>
+                                   <p id="resolution-text"></p>
+                              </div>
                               <div class="control-group">
                                    <div class="flex-between"><label for="width-slider">Width</label><span
                                              class="slider-value" id="width-value">512px</span></div>
@@ -205,25 +218,33 @@
           <div class="lightbox-header">
                <p id="lightbox-caption" class="lightbox-caption"></p>
                <div class="lightbox-actions">
-                    <button id="lightbox-zoom-out" title="Zoom Out"><span
+                    <button id="lightbox-zoom-out" title="Zoom Out ( - )"><span
                               class="material-symbols-outlined">zoom_out</span></button>
-                    <button id="lightbox-zoom-in" title="Zoom In"><span
+                    <button id="lightbox-zoom-in" title="Zoom In ( + )"><span
                               class="material-symbols-outlined">zoom_in</span></button>
-                    <button id="lightbox-fit" title="Fit to Screen"><span
+                    <button id="lightbox-fit" title="Fit to Screen ( F )"><span
                               class="material-symbols-outlined">fit_screen</span></button>
-                    <button id="lightbox-delete" title="Delete Image"><span
+                    <button id="lightbox-delete" title="Delete Image ( Del )"><span
                               class="material-symbols-outlined">delete</span></button>
-                    <button id="lightbox-close" title="Close"><span
+                    <button id="lightbox-close" title="Close ( Esc )"><span
                               class="material-symbols-outlined">close</span></button>
                </div>
           </div>
-          <button id="lightbox-prev" class="lightbox-nav prev" title="Previous Image"><span
+          <button id="lightbox-prev" class="lightbox-nav prev" title="Previous (←)"><span
                     class="material-symbols-outlined">arrow_back_ios</span></button>
           <div id="lightbox-image-wrapper">
                <img id="lightbox-img" src="" alt="Lightbox Image" />
           </div>
-          <button id="lightbox-next" class="lightbox-nav next" title="Next Image"><span
+          <button id="lightbox-next" class="lightbox-nav next" title="Next (→)"><span
                     class="material-symbols-outlined">arrow_forward_ios</span></button>
+     </div>
+
+     <div id="dialog-overlay" class="dialog-overlay hidden">
+          <div class="dialog-box">
+               <h3 id="dialog-title" class="dialog-title"></h3>
+               <p id="dialog-message" class="dialog-message"></p>
+               <div id="dialog-buttons" class="dialog-buttons"></div>
+          </div>
      </div>
 </body>
 <script src="/static/js/main.js"></script>
