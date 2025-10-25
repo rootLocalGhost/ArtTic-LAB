@@ -21,7 +21,6 @@
      --navbar-height: 60px;
 }
 
-/* --- Base & Global Styles --- */
 *,
 *::before,
 *::after {
@@ -61,7 +60,6 @@ body {
      background: var(--teal-700);
 }
 
-/* --- Transitions & Animations --- */
 .page-content {
      animation: fadeIn 0.5s ease-out;
 }
@@ -78,7 +76,6 @@ body {
      }
 }
 
-/* --- Top Navigation Bar --- */
 .top-navbar,
 .nav-left,
 .nav-right,
@@ -167,7 +164,6 @@ body {
      background-color: #fef2f2;
 }
 
-/* --- Main Content & Layout --- */
 .main-content {
      padding: 1rem;
      padding-top: calc(var(--navbar-height) + 1rem);
@@ -201,7 +197,6 @@ body {
      display: none !important;
 }
 
-/* --- Cards & General Components --- */
 .content-card {
      background-color: var(--white);
      border-radius: 0.75rem;
@@ -268,7 +263,6 @@ body {
      color: var(--status-orange);
 }
 
-/* --- Forms & Inputs --- */
 .control-group {
      margin-bottom: 1rem;
 }
@@ -309,12 +303,10 @@ body {
      border-color: var(--teal-500);
 }
 
-/* Custom Textarea */
 .form-textarea {
      width: 100%;
      height: auto;
      min-height: 5rem;
-     resize: vertical;
      padding: 0.5rem 0.75rem;
      flex-grow: 1;
      background-color: var(--light-gray);
@@ -325,8 +317,8 @@ body {
      font-family: inherit;
      font-size: 0.9rem;
      color: var(--slate-800);
-     background-image: linear-gradient(rgba(0, 0, 0, 0.02) 50%, transparent 50%);
-     background-size: 100% 3em;
+     resize: none;
+     overflow-y: hidden;
 }
 
 .form-textarea:focus {
@@ -334,7 +326,6 @@ body {
      border-color: var(--teal-500);
 }
 
-/* --- Custom Checkbox --- */
 .checkbox-group {
      margin-bottom: 0.75rem;
 }
@@ -398,7 +389,6 @@ body {
      margin: 0.25rem 0 0 26px;
 }
 
-/* Custom Dropdown (same as before, it's already good) */
 .custom-dropdown {
      position: relative;
      width: 100%;
@@ -484,7 +474,6 @@ body {
      color: #9ca3af;
 }
 
-/* --- Buttons --- */
 .btn {
      height: 2.5rem;
      padding: 0 1rem;
@@ -573,7 +562,6 @@ body {
      gap: 0.5rem;
 }
 
-/* --- Custom Sliders --- */
 .slider-container {
      position: relative;
      height: 20px;
@@ -629,7 +617,6 @@ body {
      box-shadow: 0 0 0 5px rgba(20, 184, 166, 0.2);
 }
 
-/* --- Image Preview & Progress --- */
 .generation-column {
      display: flex;
      flex-direction: column;
@@ -653,11 +640,13 @@ body {
      justify-content: center;
      overflow: hidden;
      box-shadow: var(--shadow-sm);
+     cursor: pointer;
 }
 
 .image-placeholder {
      text-align: center;
      color: var(--dark-gray);
+     cursor: default;
 }
 
 .image-placeholder .material-symbols-outlined {
@@ -667,7 +656,7 @@ body {
 .image-preview-image {
      width: 100%;
      height: 100%;
-     object-fit: cover;
+     object-fit: contain;
 }
 
 .image-actions-overlay {
@@ -703,6 +692,8 @@ body {
      color: var(--slate-800);
      text-decoration: none;
      transition: all 0.2s ease;
+     cursor: pointer;
+     border: none;
 }
 
 .image-action-btn:hover {
@@ -766,7 +757,6 @@ body {
      box-shadow: 0 8px 20px -5px rgba(20, 184, 166, 0.5);
 }
 
-/* --- Gallery & Lightbox --- */
 .gallery-header {
      display: flex;
      justify-content: space-between;
@@ -829,16 +819,11 @@ body {
 .lightbox {
      position: fixed;
      z-index: 1000;
-     left: 0;
-     top: 0;
-     width: 100%;
-     height: 100%;
-     overflow: auto;
+     inset: 0;
      background-color: rgba(15, 23, 42, 0.85);
      backdrop-filter: blur(8px);
      display: flex;
-     align-items: center;
-     justify-content: center;
+     flex-direction: column;
      opacity: 0;
      transition: opacity 0.3s ease;
      pointer-events: none;
@@ -849,47 +834,95 @@ body {
      pointer-events: auto;
 }
 
-.lightbox-content {
-     margin: auto;
-     display: block;
-     max-width: 90%;
-     max-height: 85%;
-     border-radius: 0.5rem;
-     transform: scale(0.95);
-     transition: transform 0.3s ease;
-}
-
-.lightbox:not(.hidden) .lightbox-content {
-     transform: scale(1);
-}
-
-.lightbox-close {
-     position: absolute;
-     top: 15px;
-     right: 35px;
-     color: #f1f1f1;
-     font-size: 40px;
-     font-weight: bold;
-     cursor: pointer;
-     transition: color 0.2s ease;
-}
-
-.lightbox-close:hover {
-     color: var(--medium-gray);
+.lightbox-header {
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+     padding: 0.5rem 1rem;
+     color: var(--white);
+     flex-shrink: 0;
 }
 
 .lightbox-caption {
-     margin: 10px auto 0;
-     display: block;
-     width: 80%;
-     max-width: 700px;
-     text-align: center;
-     color: var(--medium-gray);
-     padding: 10px 0;
-     font-size: 0.875rem;
+     font-size: 0.9rem;
+     text-overflow: ellipsis;
+     white-space: nowrap;
+     overflow: hidden;
 }
 
-/* --- Responsive Layout --- */
+.lightbox-actions {
+     display: flex;
+     gap: 0.5rem;
+}
+
+.lightbox-actions button {
+     background: none;
+     border: none;
+     color: var(--white);
+     cursor: pointer;
+     padding: 0.5rem;
+     border-radius: 50%;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     transition: background-color 0.2s ease;
+}
+
+.lightbox-actions button:hover {
+     background-color: rgba(255, 255, 255, 0.1);
+}
+
+#lightbox-image-wrapper {
+     flex-grow: 1;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     overflow: hidden;
+     position: relative;
+     cursor: grab;
+}
+
+#lightbox-image-wrapper:active {
+     cursor: grabbing;
+}
+
+#lightbox-img {
+     max-width: 100%;
+     max-height: 100%;
+     transition: transform 0.2s ease-out;
+     will-change: transform;
+}
+
+.lightbox-nav {
+     position: absolute;
+     top: 50%;
+     transform: translateY(-50%);
+     background: rgba(0, 0, 0, 0.3);
+     color: var(--white);
+     border: none;
+     border-radius: 50%;
+     width: 48px;
+     height: 48px;
+     cursor: pointer;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     transition: background-color 0.2s ease;
+     z-index: 1001;
+}
+
+.lightbox-nav:hover {
+     background: rgba(0, 0, 0, 0.5);
+}
+
+.lightbox-nav.prev {
+     left: 1rem;
+}
+
+.lightbox-nav.next {
+     right: 1rem;
+}
+
 @media (max-width: 1280px) {
      .grid-container {
           grid-template-columns: 1fr 1.5fr;
