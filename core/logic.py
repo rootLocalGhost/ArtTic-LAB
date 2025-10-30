@@ -1,4 +1,3 @@
-# core/logic.py
 import torch
 import os
 import time
@@ -7,6 +6,8 @@ import logging
 import math
 import re
 import asyncio
+import sys
+import subprocess
 from glob import glob
 from diffusers import (
     EulerAncestralDiscreteScheduler,
@@ -18,6 +19,8 @@ from diffusers import (
 )
 from pipelines import get_pipeline_for_model
 from pipelines.sdxl_pipeline import SDXLPipeline
+from .prompt_book import prompt_book
+from .metadata_handler import metadata_handler
 from pipelines.sd2_pipeline import SD2Pipeline
 from pipelines.sd3_pipeline import SD3Pipeline
 from pipelines.flux_pipeline import ArtTicFLUXPipeline
@@ -57,27 +60,118 @@ def get_config():
         "models": get_available_models(),
         "loras": get_available_loras(),
         "schedulers": list(SCHEDULER_MAP.keys()),
-        "gallery_images": get_output_images(),
+        "gallery_images": [img for img in get_output_images()],
+        "prompts": prompt_book.get_all_prompts(),
     }
 
 
 def get_available_models():
     models_path = os.path.join("./models", "*.safetensors")
-    return [os.path.basename(p).replace(".safetensors", "") for p in glob(models_path)]
+    return sorted(
+        [os.path.basename(p).replace(".safetensors", "") for p in glob(models_path)]
+    )
 
 
 def get_available_loras():
     os.makedirs("./loras", exist_ok=True)
     loras_path = os.path.join("./loras", "*.safetensors")
-    return [os.path.basename(p).replace(".safetensors", "") for p in glob(loras_path)]
+    return sorted(
+        [os.path.basename(p).replace(".safetensors", "") for p in glob(loras_path)]
+    )
 
 
 def get_output_images():
     outputs_path = os.path.join("./outputs", "*.png")
-    return [
-        os.path.basename(f)
-        for f in sorted(glob(outputs_path), key=os.path.getmtime, reverse=True)
-    ]
+    image_files = []
+
+    for f in sorted(glob(outputs_path), key=os.path.getmtime, reverse=True):
+        filename = os.path.basename(f)
+        filepath = os.path.join("./outputs", filename)
+
+        metadata = metadata_handler.extract_metadata_from_image(filepath)
+
+        image_info = {"filename": filename, "has_metadata": metadata is not None}
+
+        if metadata:
+            image_info.update(
+                {
+                    "prompt_preview": (
+                        metadata.get("prompt", "")[:50] + "..."
+                        if len(metadata.get("prompt", "")) > 50
+                        else metadata.get("prompt", "")
+                    ),
+                    "model_name": metadata.get("model_name", ""),
+                    "timestamp_generation": metadata.get("timestamp_generation", ""),
+                }
+            )
+
+        image_files.append(image_info)
+
+    return image_files
+
+
+def get_model_files():
+    models_dir = "./models"
+    os.makedirs(models_dir, exist_ok=True)
+    files = glob(os.path.join(models_dir, "*.safetensors"))
+    return sorted([os.path.basename(f) for f in files])
+
+
+def get_lora_files():
+    loras_dir = "./loras"
+    os.makedirs(loras_dir, exist_ok=True)
+    files = glob(os.path.join(loras_dir, "*.safetensors"))
+    return sorted([os.path.basename(f) for f in files])
+
+
+def delete_model_file(filename):
+    if not filename:
+        raise ValueError("Filename cannot be empty.")
+
+    models_dir = os.path.abspath("./models")
+    file_path = os.path.abspath(os.path.join(models_dir, filename))
+
+    if os.path.commonpath([file_path, models_dir]) != models_dir:
+        logger.error(
+            f"Attempted to delete file outside of models directory: {filename}"
+        )
+        raise PermissionError("Cannot delete files outside of the models directory.")
+
+    if not os.path.exists(file_path):
+        logger.warning(f"Attempted to delete non-existent model file: {filename}")
+        return {"status": "not_found", "message": f"File '{filename}' not found."}
+
+    try:
+        os.remove(file_path)
+        logger.info(f"Successfully deleted model file: {filename}")
+        return {"status": "success", "message": f"Deleted '{filename}'."}
+    except Exception as e:
+        logger.error(f"Error deleting model file '{filename}': {e}", exc_info=True)
+        raise IOError(f"Could not delete file '{filename}'.")
+
+
+def delete_lora_file(filename):
+    if not filename:
+        raise ValueError("Filename cannot be empty.")
+
+    loras_dir = os.path.abspath("./loras")
+    file_path = os.path.abspath(os.path.join(loras_dir, filename))
+
+    if os.path.commonpath([file_path, loras_dir]) != loras_dir:
+        logger.error(f"Attempted to delete file outside of loras directory: {filename}")
+        raise PermissionError("Cannot delete files outside of the loras directory.")
+
+    if not os.path.exists(file_path):
+        logger.warning(f"Attempted to delete non-existent lora file: {filename}")
+        return {"status": "not_found", "message": f"File '{filename}' not found."}
+
+    try:
+        os.remove(file_path)
+        logger.info(f"Successfully deleted lora file: {filename}")
+        return {"status": "success", "message": f"Deleted '{filename}'."}
+    except Exception as e:
+        logger.error(f"Error deleting lora file '{filename}': {e}", exc_info=True)
+        raise IOError(f"Could not delete file '{filename}'.")
 
 
 def _get_next_image_number():
@@ -88,7 +182,7 @@ def _get_next_image_number():
     highest_num = 0
     pattern = re.compile(r"ArtTic-LAB_(\d+)\.png")
     for f in files:
-        match = pattern.match(f)
+        match = pattern.match(f["filename"])
         if match:
             num = int(match.group(1))
             if num > highest_num:
@@ -401,8 +495,86 @@ def generate_image(
     filepath = os.path.join("./outputs", filename)
     image.save(filepath)
 
+    lora_info = None
+    if app_state["current_lora_name"]:
+        lora_info = {"name": app_state["current_lora_name"], "weight": lora_weight}
+
+    metadata = metadata_handler.create_metadata(
+        prompt=prompt,
+        negative_prompt=negative_prompt,
+        model_name=app_state["current_model_name"],
+        seed=seed,
+        width=width,
+        height=height,
+        steps=steps,
+        cfg_scale=guidance,
+        lora_info=lora_info,
+    )
+
+    metadata_handler.embed_metadata_to_image(filepath, metadata)
+
     info_text = f"Generated in {generation_time:.2f}s on '{app_state['current_model_name']}' with seed {seed}."
     if app_state["current_lora_name"]:
         info_text += f" LoRA: {app_state['current_lora_name']} @ {lora_weight}."
 
     return {"image_filename": filename, "info": info_text}
+
+
+def get_prompts():
+    return prompt_book.get_all_prompts()
+
+
+def add_prompt(title: str, prompt: str, negative_prompt: str = ""):
+    success = prompt_book.add_prompt(title, prompt, negative_prompt)
+    return {"success": success}
+
+
+def update_prompt(old_title: str, new_title: str, prompt: str, negative_prompt: str):
+    success = prompt_book.update_prompt(old_title, new_title, prompt, negative_prompt)
+    return {"success": success}
+
+
+def delete_prompt(title: str):
+    success = prompt_book.delete_prompt(title)
+    return {"success": success}
+
+
+def get_image_metadata(filename: str):
+    filepath = os.path.join("./outputs", filename)
+    if not os.path.exists(filepath):
+        return {"error": "File not found"}
+
+    metadata = metadata_handler.extract_metadata_from_image(filepath)
+    if metadata:
+        return {"success": True, "metadata": metadata}
+    else:
+        return {"success": False, "error": "No metadata found"}
+
+
+def restart_backend():
+    logger.info("Restart command received. Restarting application...")
+    try:
+        args = [sys.executable] + sys.argv
+
+        if sys.platform == "win32":
+            subprocess.Popen(args, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP)
+        else:
+            subprocess.Popen(args)
+
+        logger.info("New process started. Shutting down old process.")
+        sys.exit(0)
+    except Exception as e:
+        logger.error(f"Error restarting backend: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+def clear_cache():
+    try:
+        if hasattr(torch, "xpu") and torch.xpu.is_available():
+            torch.xpu.empty_cache()
+            torch.xpu.synchronize()
+        logger.info("VRAM cache cleared.")
+        return {"status": "success", "message": "VRAM cache cleared"}
+    except Exception as e:
+        logger.error(f"Error clearing cache: {e}")
+        return {"status": "error", "message": str(e)}
