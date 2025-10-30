@@ -5,31 +5,42 @@
      <meta charset="utf-8" />
      <meta content="width=device-width, initial-scale=1.0" name="viewport" />
      <title>ArtTic-LAB</title>
-     <link rel="icon" href="../static/asset/logo.svg" type="image/svg+xml">
+     <link rel="icon" href="/static/asset/logo.svg" type="image/svg+xml">
      <link href="https://fonts.googleapis.com" rel="preconnect" />
-     <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+     <link crossorigin href="https://fonts.gstatic.com" rel="preconnect" />
      <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Silkscreen:wght@400;700&display=swap"
           rel="stylesheet">
      <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
-     <link rel="shortcut icon" href="../static/asset/logo.svg" type="image/x-icon">
      <link href="/static/css/style.css" rel="stylesheet" />
 </head>
 
 <body>
-     <header class="top-navbar">
-          <div class="nav-left">
-               <div class="logo-brand">
-                    <img src="../static/asset/logo.svg" alt="ArtTic-LAB Logo" class="app-logo-icon" />
-                    <h1 class="app-title">ArtTic-LAB</h1>
-               </div>
-               <nav class="nav-links">
-                    <a class="nav-link active" href="#" data-target="generate"><span
-                              class="material-symbols-outlined">auto_awesome</span> Generate</a>
-                    <a class="nav-link" href="#" data-target="gallery"><span
-                              class="material-symbols-outlined">photo_library</span> Gallery</a>
-               </nav>
+     <header class="top-bar">
+          <div class="logo-brand">
+               <img src="/static/asset/logo.svg" alt="ArtTic-LAB Logo" class="app-logo-icon" />
+               <h1 class="app-title">ArtTic-LAB</h1>
           </div>
-          <div class="nav-right">
+          <nav class="nav-links">
+               <a class="nav-link active" href="#" data-target="generate"><span
+                         class="material-symbols-outlined">auto_awesome</span> Generate</a>
+               <a class="nav-link" href="#" data-target="gallery"><span
+                         class="material-symbols-outlined">photo_library</span> Gallery</a>
+               <a class="nav-link" href="#" data-target="prompt-book"><span
+                         class="material-symbols-outlined">book</span>
+                    Prompt Book</a>
+               <a class="nav-link" href="#" data-target="settings"><span
+                         class="material-symbols-outlined">settings</span> Settings</a>
+          </nav>
+          <div class="floating-group top-right">
+               <button id="reset-zoom-btn" class="icon-btn" title="Reset View"><span
+                         class="material-symbols-outlined">center_focus_strong</span></button>
+               <a id="restart-backend-btn" href="#" class="icon-btn" title="Restart Backend"><span
+                         class="material-symbols-outlined">refresh</span></a>
+               <a id="clear-cache-btn" href="#" class="icon-btn" title="Clear VRAM Cache"><span
+                         class="material-symbols-outlined">delete_sweep</span></a>
+               <button id="theme-toggle-btn" class="icon-btn" title="Toggle Theme">
+                    <span class="material-symbols-outlined">dark_mode</span>
+               </button>
                <div id="status-indicator" class="status-indicator connecting"><span
                          id="connection-status">Connecting...</span></div>
           </div>
@@ -37,182 +48,87 @@
 
      <main class="main-content">
           <div id="page-generate" class="page-content">
-               <div class="grid-container">
-                    <div class="control-column">
-                         <div class="content-card">
-                              <h2 class="card-title">Model & Sampler</h2>
-                              <div class="control-group">
-                                   <div class="flex-between">
-                                        <label for="model-dropdown">Model</label>
-                                        <button id="refresh-models-btn" class="btn btn-icon btn-secondary"
-                                             style="width:2rem;height:2rem;" title="Refresh Models"><span
-                                                  class="material-symbols-outlined"
-                                                  style="font-size: 1rem;">refresh</span></button>
-                                   </div>
-                                   <div id="model-dropdown" class="custom-dropdown"></div>
-                              </div>
-                              <div class="control-group"><label for="sampler-dropdown">Sampler</label>
-                                   <div id="sampler-dropdown" class="custom-dropdown"></div>
-                              </div>
-                              <div class="compact-info-card" id="status-card"><span
-                                        class="material-symbols-outlined icon-unloaded">memory</span>
-                                   <p id="status-text">No model loaded.</p>
-                              </div>
-                              <div class="grid-col-2"><button id="load-model-btn" class="btn btn-primary"><span
-                                             class="material-symbols-outlined">hub</span> Load</button><button
-                                        id="unload-model-btn" class="btn btn-secondary"><span
-                                             class="material-symbols-outlined">cancel</span> Unload</button></div>
-                         </div>
-                         <div class="content-card">
-                              <div class="flex-between">
-                                   <h2 class="card-title" style="border-bottom: none; margin-bottom: 0;">LoRA</h2>
-                                   <label class="switch-label">
-                                        <input type="checkbox" id="lora-toggle" class="lora-switch">
-                                        <span class="switch-slider"></span>
-                                   </label>
-                              </div>
-                              <div id="lora-options-container" class="hidden">
-                                   <div class="control-group" style="margin-top: 1rem;">
-                                        <div class="flex-between">
-                                             <label for="lora-dropdown">LoRA (Optional)</label>
-                                             <button id="refresh-loras-btn" class="btn btn-icon btn-secondary"
-                                                  style="width:2rem;height:2rem;" title="Refresh LoRAs"><span
-                                                       class="material-symbols-outlined"
-                                                       style="font-size: 1rem;">refresh</span></button>
-                                        </div>
-                                        <div id="lora-dropdown" class="custom-dropdown"></div>
-                                   </div>
-                                   <div class="control-group">
-                                        <div class="flex-between"><label for="lora-weight-slider">LoRA
-                                                  Weight</label><span class="slider-value"
-                                                  id="lora-weight-value">0.7</span></div>
-                                        <div class="slider-container"><input type="range" id="lora-weight-slider"
-                                                  class="range-input" min="0" max="1.0" value="0.7" step="0.05"></div>
-                                   </div>
-                              </div>
-                         </div>
-                         <div class="content-card">
-                              <h2 class="card-title">Prompting</h2>
-                              <div class="control-group"><label for="prompt">Prompt</label><textarea id="prompt"
-                                        class="form-textarea"
-                                        placeholder="A cinematic photo of...">fantasy portrait of a mystical woman with blue flowing hair resembling ocean waves, watercolor art, cool color palette, seafoam accents, luminous eyes, elegant posture, magical and calming aura, fine art style, detailed face, soft-focus lighting, painterly textures</textarea>
-                              </div>
-                              <div class="control-group"><label for="negative-prompt">Negative Prompt</label><textarea
-                                        id="negative-prompt" class="form-textarea"
-                                        placeholder="ugly, deformed, blurry..."></textarea></div>
-                         </div>
-                    </div>
-
-                    <div class="parameters-column">
-                         <div class="content-card">
-                              <h2 class="card-title">Parameters</h2>
-                              <div class="control-group">
-                                   <div class="flex-between"><label for="steps-slider">Steps</label><span
-                                             class="slider-value" id="steps-value">50</span></div>
-                                   <div class="slider-container"><input type="range" id="steps-slider"
-                                             class="range-input" min="1" max="100" value="50" step="1"></div>
-                              </div>
-                              <div class="control-group">
-                                   <div class="flex-between"><label for="guidance-slider">Guidance (CFG)</label><span
-                                             class="slider-value" id="guidance-value">3.0</span></div>
-                                   <div class="slider-container"><input type="range" id="guidance-slider"
-                                             class="range-input" min="1" max="20" value="3.0" step="0.1"></div>
-                              </div>
-                              <div class="control-group"><label for="seed-input">Seed</label>
-                                   <div class="input-with-button"><input type="number" id="seed-input" value="12345"
-                                             class="form-input"><button id="randomize-seed-btn" class="btn btn-icon"
-                                             title="Randomize Seed"><span
-                                                  class="material-symbols-outlined">casino</span></button></div>
-                              </div>
-                              <h2 class="card-title sub-title">Dimensions</h2>
-                              <div id="resolution-guidance" class="compact-info-card hidden">
-                                   <span class="material-symbols-outlined">recommend</span>
-                                   <p id="resolution-text"></p>
-                              </div>
-                              <div class="control-group">
-                                   <div class="flex-between"><label for="width-slider">Width</label><span
-                                             class="slider-value" id="width-value">512px</span></div>
-                                   <div class="slider-container"><input type="range" id="width-slider"
-                                             class="range-input" min="256" max="2048" value="512" step="64"></div>
-                              </div>
-                              <div class="control-group">
-                                   <div class="flex-between"><label for="height-slider">Height</label><span
-                                             class="slider-value" id="height-value">512px</span></div>
-                                   <div class="slider-container"><input type="range" id="height-slider"
-                                             class="range-input" min="256" max="2048" value="512" step="64"></div>
-                              </div>
-                              <div class="control-group"><label>Aspect Ratios</label>
-                                   <div class="grid-col-4" id="aspect-ratio-btns"><button
-                                             class="btn btn-aspect-ratio active" data-ratio="1:1">1:1</button><button
-                                             class="btn btn-aspect-ratio" data-ratio="4:3">4:3</button><button
-                                             class="btn btn-aspect-ratio" data-ratio="3:2">3:2</button><button
-                                             class="btn btn-aspect-ratio" data-ratio="16:9">16:9</button></div>
-                              </div>
-                              <div class="control-group checkbox-group">
-                                   <label class="checkbox-label"><input type="checkbox" id="vae-tiling-checkbox"
-                                             checked><span>VAE Tiling</span></label>
-                                   <p class="checkbox-helper">Reduces VRAM usage for high resolutions at a slight
-                                        performance cost.</p>
-                              </div>
-                              <div class="control-group checkbox-group">
-                                   <label class="checkbox-label"><input type="checkbox"
-                                             id="cpu-offload-checkbox"><span>CPU Offload</span></label>
-                                   <p class="checkbox-helper">Drastically reduces VRAM usage by using system RAM, but is
-                                        much slower.</p>
-                              </div>
-                         </div>
-                    </div>
-
-                    <div class="generation-column">
-                         <div class="image-preview-area">
-                              <div id="image-preview-wrapper" class="image-preview-wrapper">
-                                   <div id="image-placeholder" class="image-placeholder"><span
-                                             class="material-symbols-outlined">wallpaper</span>
-                                        <p>Your creation appears here</p>
-                                   </div>
-                                   <img id="output-image" src="" alt="Generated Image"
-                                        class="image-preview-image hidden" />
-                                   <div class="image-actions-overlay">
-                                        <button id="view-btn" class="image-action-btn" title="View Image"><span
-                                                  class="material-symbols-outlined">fullscreen</span></button>
-                                        <a id="download-btn" class="image-action-btn" download
-                                             title="Download Image"><span
-                                                  class="material-symbols-outlined">download</span></a>
-                                        <a id="open-new-tab-btn" class="image-action-btn" target="_blank"
-                                             title="Open in New Tab"><span
-                                                  class="material-symbols-outlined">open_in_new</span></a>
-                                   </div>
-                              </div>
-                              <div id="progress-container" class="progress-container hidden">
-                                   <div class="flex-between">
-                                        <p id="progress-label" class="progress-label">Loading Model...</p>
-                                        <p id="progress-percent" class="progress-percent">0%</p>
-                                   </div>
-                                   <div class="progress-bar-bg">
-                                        <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%;"></div>
-                                   </div>
-                              </div>
-                              <p id="info-text" class="info-text-area"></p>
-                         </div>
-                         <button id="generate-btn" class="btn-generate-art"><span
-                                   class="material-symbols-outlined">auto_fix_high</span> Generate Art</button>
-                    </div>
-               </div>
+               <svg id="node-connector-svg" class="node-connector-svg"></svg>
+               <div id="node-canvas" class="node-canvas"></div>
           </div>
 
           <div id="page-gallery" class="page-content hidden">
                <div class="gallery-header">
-                    <h1 class="gallery-title">Your Generations</h1><button id="refresh-gallery-btn"
-                         class="btn btn-secondary"><span class="material-symbols-outlined">refresh</span> Refresh
-                         Gallery</button>
+                    <h1 class="gallery-title">Your Generations</h1>
+                    <button id="refresh-gallery-btn" class="btn btn-secondary"><span
+                              class="material-symbols-outlined">refresh</span> Refresh</button>
                </div>
                <div id="gallery-grid" class="gallery-grid"></div>
-               <div id="gallery-placeholder" class="gallery-placeholder hidden"><span
-                         class="material-symbols-outlined">image_search</span>
+               <div id="gallery-placeholder" class="gallery-placeholder hidden">
+                    <span class="material-symbols-outlined">image_search</span>
                     <p>No images found. Go generate something amazing!</p>
                </div>
           </div>
+
+          <div id="page-prompt-book" class="page-content hidden">
+               <div class="gallery-header">
+                    <h1 class="gallery-title">Prompt Book</h1>
+                    <div>
+                         <button id="add-prompt-btn" class="btn btn-primary"><span
+                                   class="material-symbols-outlined">add</span> New</button>
+                         <button id="refresh-prompts-btn" class="btn btn-secondary"><span
+                                   class="material-symbols-outlined">refresh</span></button>
+                    </div>
+               </div>
+               <div id="prompt-book-grid" class="gallery-grid"></div>
+               <div id="prompt-book-placeholder" class="gallery-placeholder hidden">
+                    <span class="material-symbols-outlined">stylebook</span>
+                    <p>Your saved prompts will appear here.</p>
+               </div>
+          </div>
+
+          <div id="page-settings" class="page-content hidden">
+               <div class="settings-container">
+                    <div class="settings-column">
+                         <div class="settings-header">
+                              <h2>Models</h2>
+                              <button id="refresh-models-btn" class="icon-btn"><span
+                                        class="material-symbols-outlined">refresh</span></button>
+                         </div>
+                         <div id="models-list" class="file-list"></div>
+                    </div>
+                    <div class="settings-column">
+                         <div class="settings-header">
+                              <h2>LoRAs</h2>
+                              <button id="refresh-loras-btn" class="icon-btn"><span
+                                        class="material-symbols-outlined">refresh</span></button>
+                         </div>
+                         <div id="loras-list" class="file-list"></div>
+                    </div>
+               </div>
+          </div>
      </main>
+
+     <div id="node-dock" class="node-dock">
+          <div class="dock-section">
+               <div class="node-dock-button" data-node-type="lora">
+                    <span class="material-symbols-outlined">extension</span>
+                    <span class="dock-label">Add LoRA</span>
+               </div>
+               <div class="node-dock-button" data-node-type="vae_tiling">
+                    <span class="material-symbols-outlined">grid_on</span>
+                    <span class="dock-label">VAE Tiling</span>
+               </div>
+               <div class="node-dock-button" data-node-type="cpu_offload">
+                    <span class="material-symbols-outlined">memory_alt</span>
+                    <span class="dock-label">CPU Offload</span>
+               </div>
+          </div>
+          <div class="dock-divider"></div>
+          <div class="dock-section">
+               <button id="dock-load-model-btn" class="btn btn-primary btn-dock-action">
+                    <span class="material-symbols-outlined">download</span> Load Model
+               </button>
+               <button id="dock-generate-btn" class="btn btn-primary btn-dock-action btn-generate" disabled>
+                    <span class="material-symbols-outlined">auto_awesome</span> Generate
+               </button>
+          </div>
+     </div>
 
      <div id="lightbox" class="lightbox hidden">
           <div class="lightbox-header">
@@ -232,9 +148,7 @@
           </div>
           <button id="lightbox-prev" class="lightbox-nav prev" title="Previous (←)"><span
                     class="material-symbols-outlined">arrow_back_ios</span></button>
-          <div id="lightbox-image-wrapper">
-               <img id="lightbox-img" src="" alt="Lightbox Image" />
-          </div>
+          <div id="lightbox-image-wrapper"><img id="lightbox-img" src="" alt="Lightbox Image" /></div>
           <button id="lightbox-next" class="lightbox-nav next" title="Next (→)"><span
                     class="material-symbols-outlined">arrow_forward_ios</span></button>
      </div>
@@ -246,7 +160,38 @@
                <div id="dialog-buttons" class="dialog-buttons"></div>
           </div>
      </div>
+
+     <div id="prompt-editor-overlay" class="dialog-overlay hidden">
+          <div class="dialog-box" style="max-width: 600px;">
+               <h3 id="prompt-editor-title" class="dialog-title">Add New Prompt</h3>
+               <div class="control-group"><label for="prompt-title">Title</label><input type="text" id="prompt-title"
+                         class="form-input" placeholder="e.g., Cyberpunk City"></div>
+               <div class="control-group"><label for="prompt-content">Prompt</label>
+                    <div class="autoresize-textarea-wrapper">
+                         <textarea id="prompt-content" class="form-textarea"
+                              placeholder="A sprawling cityscape at night..."></textarea>
+                    </div>
+               </div>
+               <div class="control-group"><label for="prompt-negative">Negative Prompt (Optional)</label>
+                    <div class="autoresize-textarea-wrapper">
+                         <textarea id="prompt-negative" class="form-textarea"
+                              placeholder="e.g., daylight, blurry, jpeg artifacts"></textarea>
+                    </div>
+               </div>
+               <div id="prompt-editor-buttons" class="dialog-buttons"></div>
+          </div>
+     </div>
+
+     <template id="file-item-template">
+          <div class="file-item">
+               <span class="file-name"></span>
+               <button class="icon-btn file-delete-btn" title="Delete File">
+                    <span class="material-symbols-outlined">delete</span>
+               </button>
+          </div>
+     </template>
+
+     <script src="/static/js/main.js"></script>
 </body>
-<script src="/static/js/main.js"></script>
 
 </html>
