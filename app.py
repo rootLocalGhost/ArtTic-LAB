@@ -1,4 +1,3 @@
-# app.py
 import argparse
 import logging
 import sys
@@ -16,6 +15,7 @@ from core.logic import (
 )
 
 warnings.filterwarnings("ignore", ".*safety_checker.*")
+warnings.filterwarnings("ignore", ".*You have disabled the safety checker.*")
 warnings.filterwarnings("ignore", category=UserWarning)
 
 parser = argparse.ArgumentParser(
