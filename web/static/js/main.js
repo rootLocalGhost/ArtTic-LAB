@@ -1,129 +1,81 @@
-// web/static/js/main.js
-
 document.addEventListener("DOMContentLoaded", () => {
   const state = {
-    isModelLoaded: false,
-    isBusy: false,
-    modelType: "SD 1.5",
-    currentModelName: null,
-    currentLoraName: "None",
-    currentCpuOffload: false,
-    currentVaeTiling: true,
     socket: null,
+    isModelLoaded: false,
+    lastGeneratedImage: null,
+    maxVramRes: null,
     galleryImages: [],
+    prompts: [],
+    settings: { models: [], loras: [] },
     currentLightboxIndex: -1,
     zoomLevel: 1,
     isPanning: false,
     panStart: { x: 0, y: 0 },
     panCurrent: { x: 0, y: 0 },
-  };
-
-  const ASPECT_RATIOS = {
-    "SD 1.5": {
-      "1:1": [512, 512],
-      "4:3": [576, 448],
-      "3:2": [608, 416],
-      "16:9": [672, 384],
+    canvas: {
+      scale: 1,
+      offsetX: 0,
+      offsetY: 0,
+      isDragging: false,
+      startX: 0,
+      startY: 0,
     },
-    "SD 2.x": {
-      "1:1": [768, 768],
-      "4:3": [864, 640],
-      "3:2": [960, 640],
-      "16:9": [1024, 576],
-    },
-    SDXL: {
-      "1:1": [1024, 1024],
-      "4:3": [1152, 896],
-      "3:2": [1216, 832],
-      "16:9": [1344, 768],
-    },
-    SD3: {
-      "1:1": [1024, 1024],
-      "4:3": [1152, 896],
-      "3:2": [1216, 832],
-      "16:9": [1344, 768],
-    },
-    "FLUX Dev": {
-      "1:1": [1024, 1024],
-      "4:3": [1152, 896],
-      "3:2": [1216, 832],
-      "16:9": [1344, 768],
-    },
-    "FLUX Schnell": {
-      "1:1": [1024, 1024],
-      "4:3": [1152, 896],
-      "3:2": [1216, 832],
-      "16:9": [1344, 768],
+    nodes: new Map(),
+    generationState: {
+      model_name: null,
+      scheduler_name: "Euler A",
+      lora_name: null,
+      lora_weight: 0.7,
+      prompt: "fantasy portrait of a mystical woman with blue flowing hair resembling ocean waves, watercolor art, cool color palette, seafoam accents, luminous eyes, elegant posture, magical and calming aura, fine art style, detailed face, soft-focus lighting, painterly textures",
+      negative_prompt: "",
+      steps: 50,
+      guidance: 3,
+      seed: 12345,
+      width: 512,
+      height: 512,
+      vae_tiling: true,
+      cpu_offload: false,
     },
   };
 
   const ui = {
-    nav: { links: document.querySelectorAll(".nav-link") },
+    navLinks: document.querySelectorAll(".nav-link"),
     pages: {
       generate: document.getElementById("page-generate"),
       gallery: document.getElementById("page-gallery"),
+      promptBook: document.getElementById("page-prompt-book"),
+      settings: document.getElementById("page-settings"),
     },
     status: {
       indicator: document.getElementById("status-indicator"),
       connectionText: document.getElementById("connection-status"),
-      card: document.getElementById("status-card"),
-      text: document.getElementById("status-text"),
-      icon: document.querySelector("#status-card .material-symbols-outlined"),
-    },
-    model: {
-      dropdown: document.getElementById("model-dropdown"),
-      samplerDropdown: document.getElementById("sampler-dropdown"),
-      loadBtn: document.getElementById("load-model-btn"),
-      unloadBtn: document.getElementById("unload-model-btn"),
-      refreshBtn: document.getElementById("refresh-models-btn"),
-    },
-    lora: {
-      toggle: document.getElementById("lora-toggle"),
-      container: document.getElementById("lora-options-container"),
-      dropdown: document.getElementById("lora-dropdown"),
-      refreshBtn: document.getElementById("refresh-loras-btn"),
-      weightSlider: document.getElementById("lora-weight-slider"),
-      weightValue: document.getElementById("lora-weight-value"),
-    },
-    params: {
-      prompt: document.getElementById("prompt"),
-      negativePrompt: document.getElementById("negative-prompt"),
-      stepsSlider: document.getElementById("steps-slider"),
-      stepsValue: document.getElementById("steps-value"),
-      guidanceSlider: document.getElementById("guidance-slider"),
-      guidanceValue: document.getElementById("guidance-value"),
-      widthSlider: document.getElementById("width-slider"),
-      widthValue: document.getElementById("width-value"),
-      heightSlider: document.getElementById("height-slider"),
-      heightValue: document.getElementById("height-value"),
-      aspectRatioBtns: document.getElementById("aspect-ratio-btns"),
-      seedInput: document.getElementById("seed-input"),
-      randomizeSeedBtn: document.getElementById("randomize-seed-btn"),
-      vaeTilingCheckbox: document.getElementById("vae-tiling-checkbox"),
-      cpuOffloadCheckbox: document.getElementById("cpu-offload-checkbox"),
-      resGuidance: document.getElementById("resolution-guidance"),
-      resText: document.getElementById("resolution-text"),
-    },
-    generate: {
-      wrapper: document.getElementById("image-preview-wrapper"),
-      btn: document.getElementById("generate-btn"),
-      outputImage: document.getElementById("output-image"),
-      imagePlaceholder: document.getElementById("image-placeholder"),
-      infoText: document.getElementById("info-text"),
-      viewBtn: document.getElementById("view-btn"),
-      downloadBtn: document.getElementById("download-btn"),
-      openNewTabBtn: document.getElementById("open-new-tab-btn"),
-    },
-    progress: {
-      container: document.getElementById("progress-container"),
-      label: document.getElementById("progress-label"),
-      percent: document.getElementById("progress-percent"),
-      barFill: document.getElementById("progress-bar-fill"),
     },
     gallery: {
       grid: document.getElementById("gallery-grid"),
       placeholder: document.getElementById("gallery-placeholder"),
       refreshBtn: document.getElementById("refresh-gallery-btn"),
+    },
+    promptBook: {
+      grid: document.getElementById("prompt-book-grid"),
+      placeholder: document.getElementById("prompt-book-placeholder"),
+      addBtn: document.getElementById("add-prompt-btn"),
+      refreshBtn: document.getElementById("refresh-prompts-btn"),
+      editor: {
+        overlay: document.getElementById("prompt-editor-overlay"),
+        title: document.getElementById("prompt-editor-title"),
+        titleInput: document.getElementById("prompt-title"),
+        promptInput: document.getElementById("prompt-content"),
+        negativeInput: document.getElementById("prompt-negative"),
+        buttons: document.getElementById("prompt-editor-buttons"),
+        _oldTitle: null,
+      },
+    },
+    settings: {
+      modelsList: document.getElementById("models-list"),
+      lorasList: document.getElementById("loras-list"),
+      refreshModelsBtn: document.getElementById("refresh-models-btn"),
+      refreshLorasBtn: document.getElementById("refresh-loras-btn"),
+      fileItemTemplate: document.getElementById("file-item-template"),
     },
     lightbox: {
       container: document.getElementById("lightbox"),
@@ -144,7 +96,18 @@ document.addEventListener("DOMContentLoaded", () => {
       message: document.getElementById("dialog-message"),
       buttons: document.getElementById("dialog-buttons"),
     },
-    busyControls: [],
+    themeToggle: document.getElementById("theme-toggle-btn"),
+    node: {
+      canvas: document.getElementById("node-canvas"),
+      connectorSvg: document.getElementById("node-connector-svg"),
+      dock: document.getElementById("node-dock"),
+      dockButtons: document.querySelectorAll("#node-dock .node-dock-button"),
+      loadModelBtn: document.getElementById("dock-load-model-btn"),
+      generateBtn: document.getElementById("dock-generate-btn"),
+    },
+    restartBtn: document.getElementById("restart-backend-btn"),
+    clearCacheBtn: document.getElementById("clear-cache-btn"),
+    resetZoomBtn: document.getElementById("reset-zoom-btn"),
   };
 
   function connectWebSocket() {
@@ -154,10 +117,6 @@ document.addEventListener("DOMContentLoaded", () => {
     state.socket = new WebSocket(url);
     state.socket.onopen = () =>
       updateConnectionStatus("Connected", "connected");
-    state.socket.onmessage = (event) => {
-      const { type, data } = JSON.parse(event.data);
-      handleWebSocketMessage(type, data);
-    };
     state.socket.onclose = () => {
       updateConnectionStatus("Reconnecting...", "connecting");
       setTimeout(connectWebSocket, 3000);
@@ -167,6 +126,10 @@ document.addEventListener("DOMContentLoaded", () => {
       updateConnectionStatus("Error", "disconnected");
       state.socket.close();
     };
+    state.socket.onmessage = (event) => {
+      const { type, data } = JSON.parse(event.data);
+      handleWebSocketMessage(type, data);
+    };
   }
 
   function sendMessage(action, payload = {}) {
@@ -175,200 +138,103 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  const messageHandlers = {
-    model_loaded: (data) => {
-      state.isModelLoaded = true;
-      state.modelType = data.model_type;
-      state.currentModelName = ui.model.dropdown.dataset.value;
-      state.currentLoraName = ui.lora.toggle.checked
-        ? ui.lora.dropdown.dataset.value
-        : "None";
-      state.currentCpuOffload = ui.params.cpuOffloadCheckbox.checked;
-      state.currentVaeTiling = ui.params.vaeTilingCheckbox.checked;
-
-      updateStatus(data.status_message, "ready");
-      setDimensions(data.width, data.height);
-      setBusyState(false);
-      updateLoadButtonState();
-
-      ui.params.resText.innerHTML = `Est. max resolution: <strong>${data.max_res_vram}px</strong> (VRAM), <strong>${data.max_res_offload}px</strong> (Offload)`;
-      ui.params.resGuidance.classList.remove("hidden");
-    },
-    generation_complete: (data) => {
-      const imageUrl = `/outputs/${data.image_filename}?t=${Date.now()}`;
-      ui.generate.outputImage.src = imageUrl;
-      ui.generate.downloadBtn.href = imageUrl;
-      ui.generate.openNewTabBtn.href = imageUrl;
-      ui.generate.outputImage.classList.remove("hidden");
-      ui.generate.wrapper.classList.add("has-image");
-      ui.generate.imagePlaceholder.classList.add("hidden");
-      ui.generate.infoText.textContent = data.info;
-      setBusyState(false);
-    },
-    generation_failed: (data) => {
-      showDialog("Generation Failed", data.message, [{ text: "OK" }]);
-      setBusyState(false);
-    },
-    model_unloaded: (data) => {
-      state.isModelLoaded = false;
-      state.currentModelName = null;
-      state.currentLoraName = "None";
-      state.currentCpuOffload = false;
-      state.currentVaeTiling = true;
-
-      ui.params.cpuOffloadCheckbox.checked = false;
-      ui.params.vaeTilingCheckbox.checked = true;
-
-      updateStatus(data.status_message, "unloaded");
-      setBusyState(false);
-      updateLoadButtonState();
-      ui.params.resGuidance.classList.add("hidden");
-    },
-    progress_update: (data) => {
-      showProgressBar(true);
-      ui.progress.label.textContent = data.description;
-      const percent = Math.round(data.progress * 100);
-      ui.progress.percent.textContent = `${percent}%`;
-      ui.progress.barFill.style.width = `${percent}%`;
-    },
-    gallery_updated: (data) => populateGallery(data.images),
-    image_deleted: (data) => {
-      if (data.status === "success") {
-        const deletedFilename = ui.lightbox.caption.textContent;
-        if (ui.generate.outputImage.src.includes(deletedFilename)) {
-          ui.generate.outputImage.src = "";
-          ui.generate.outputImage.classList.add("hidden");
-          ui.generate.wrapper.classList.remove("has-image");
-          ui.generate.imagePlaceholder.classList.remove("hidden");
-          ui.generate.wrapper.style.aspectRatio = "1 / 1";
-        }
-        closeLightbox();
-      } else {
-        showDialog("Error", `Could not delete image: ${data.message}`, [
-          { text: "OK" },
-        ]);
-      }
-    },
-    error: (data) => {
-      showDialog("Server Error", data.message, [{ text: "OK" }]);
-      setBusyState(false);
-      updateLoadButtonState();
-    },
-  };
-
   function handleWebSocketMessage(type, data) {
-    (
-      messageHandlers[type] ||
-      (() => console.warn(`Unhandled message type: ${type}`))
-    )(data);
+    const handlers = {
+      model_loaded: (data) => {
+        state.isModelLoaded = true;
+        state.maxVramRes = data.max_res_vram;
+        updateNodeUI("model_sampler", {
+          status: data.status_message,
+          loaded: true,
+        });
+        state.generationState.width = data.width;
+        state.generationState.height = data.height;
+        updateNodeUI("parameters", {
+          width: data.width,
+          height: data.height,
+          max_res: data.max_res_vram,
+        });
+      },
+      generation_complete: (data) => {
+        state.lastGeneratedImage = data.image_filename;
+        updateNodeUI("image_preview", {
+          image: data.image_filename,
+          clearProgress: true,
+        });
+      },
+      generation_failed: (data) => {
+        showDialog("Generation Failed", data.message, [{ text: "OK" }]);
+        updateNodeUI("image_preview", { clearProgress: true });
+      },
+      progress_update: (data) => {
+        updateNodeUI("image_preview", {
+          progress: data.progress,
+          description: data.description,
+        });
+      },
+      model_unloaded: (data) => {
+        state.isModelLoaded = false;
+        state.maxVramRes = null;
+        updateNodeUI("model_sampler", {
+          status: data.status_message,
+          loaded: false,
+        });
+        updateNodeUI("parameters", { max_res: null });
+      },
+      gallery_updated: (data) =>
+        populateGallery(data.images.map((img) => img.filename)),
+      image_deleted: (data) => {
+        if (data.status === "success") closeLightbox();
+        else
+          showDialog("Error", `Could not delete image: ${data.message}`, [
+            { text: "OK" },
+          ]);
+      },
+      settings_data: (data) => {
+        state.settings.models = data.models;
+        state.settings.loras = data.loras;
+        populateSettingsLists();
+      },
+      settings_data_updated: (data) => {
+        state.settings.models = data.models;
+        state.settings.loras = data.loras;
+        populateSettingsLists();
+      },
+      error: (data) =>
+        showDialog("Server Error", data.message, [{ text: "OK" }]),
+      backend_restarting: () =>
+        showDialog(
+          "Info",
+          "Backend is restarting. The page will reload shortly.",
+          []
+        ),
+      cache_cleared: () =>
+        showDialog("Success", "VRAM cache has been cleared.", [{ text: "OK" }]),
+    };
+    (handlers[type] || (() => console.warn(`Unhandled message type: ${type}`)))(
+      data
+    );
   }
 
-  function setBusyState(isBusy) {
-    state.isBusy = isBusy;
-    document.body.style.cursor = isBusy ? "wait" : "default";
-    if (!isBusy) showProgressBar(false);
-
-    ui.busyControls.forEach((el) => {
-      const isDisabled = el.classList.contains("custom-dropdown")
-        ? "disabled"
-        : "disabled";
-      el.classList.toggle(isDisabled, isBusy);
-      if (el.tagName !== "DIV") el.disabled = isBusy;
-    });
-
-    if (!isBusy) {
-      ui.model.unloadBtn.disabled = !state.isModelLoaded;
-      ui.generate.btn.disabled = !state.isModelLoaded;
-      updateLoadButtonState();
-    }
-  }
-
-  function updateLoadButtonState() {
-    if (state.isBusy) return;
-    const selectedModel = ui.model.dropdown.dataset.value;
-    const selectedLora = ui.lora.toggle.checked
-      ? ui.lora.dropdown.dataset.value
-      : "None";
-    const selectedOffload = ui.params.cpuOffloadCheckbox.checked;
-    const selectedTiling = ui.params.vaeTilingCheckbox.checked;
-
-    const isSameConfig =
-      state.isModelLoaded &&
-      selectedModel === state.currentModelName &&
-      selectedLora === state.currentLoraName &&
-      selectedOffload === state.currentCpuOffload &&
-      selectedTiling === state.currentVaeTiling;
-
-    ui.model.loadBtn.disabled = isSameConfig;
-  }
-
-  function updateStatus(message, statusClass) {
-    if (statusClass === "unloaded") {
-      ui.status.text.textContent = "No model loaded.";
-    } else {
-      ui.status.text.textContent = message;
-    }
-    const iconName =
-      { ready: "memory", unloaded: "memory_off", busy: "hourglass_top" }[
-        statusClass
-      ] || "memory";
-    ui.status.icon.textContent = iconName;
-    ui.status.icon.className = `material-symbols-outlined icon-${statusClass}`;
-  }
-
-  function showProgressBar(show) {
-    ui.progress.container.classList.toggle("hidden", !show);
-  }
   function updateConnectionStatus(text, statusClass) {
     ui.status.connectionText.textContent = text;
     ui.status.indicator.className = `status-indicator ${statusClass}`;
   }
 
-  function setDimensions(width, height) {
-    ui.params.widthSlider.value = width;
-    ui.params.heightSlider.value = height;
-    ui.params.widthSlider.dispatchEvent(new Event("input"));
-    ui.params.heightSlider.dispatchEvent(new Event("input"));
+  function initTheme() {
+    const savedTheme = localStorage.getItem("theme") || "light";
+    document.documentElement.setAttribute("data-theme", savedTheme);
+    ui.themeToggle.querySelector(".material-symbols-outlined").textContent =
+      savedTheme === "dark" ? "light_mode" : "dark_mode";
   }
 
-  function autoResizeTextarea(textarea) {
-    textarea.style.height = "auto";
-    textarea.style.height = `${textarea.scrollHeight}px`;
-  }
-
-  function createCustomDropdown(container, options, onSelect) {
-    const initialValue = options[0] || "No options";
-    container.innerHTML = `<div class="dropdown-selected" tabindex="0"><span class="selected-text">${initialValue}</span></div><ul class="dropdown-options"></ul>`;
-    const selected = container.querySelector(".selected-text");
-    const optionsList = container.querySelector(".dropdown-options");
-    options.forEach((option) => {
-      const li = document.createElement("li");
-      li.className = "dropdown-option";
-      li.textContent = option;
-      li.dataset.value = option;
-      optionsList.appendChild(li);
-    });
-    container.dataset.value = initialValue;
-    if (options.length > 0) {
-      optionsList.querySelector("li").classList.add("selected");
-    }
-    container.addEventListener("click", (e) => {
-      if (!container.classList.contains("disabled")) {
-        e.stopPropagation();
-        container.classList.toggle("open");
-      }
-    });
-    optionsList.addEventListener("click", (e) => {
-      if (e.target.tagName === "LI") {
-        container.dataset.value = e.target.dataset.value;
-        selected.textContent = e.target.textContent;
-        optionsList
-          .querySelectorAll("li")
-          .forEach((li) => li.classList.remove("selected"));
-        e.target.classList.add("selected");
-        onSelect?.(e.target.dataset.value);
-      }
-    });
+  function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute("data-theme");
+    const newTheme = currentTheme === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", newTheme);
+    localStorage.setItem("theme", newTheme);
+    ui.themeToggle.querySelector(".material-symbols-outlined").textContent =
+      newTheme === "dark" ? "light_mode" : "dark_mode";
   }
 
   function showDialog(title, message, buttons) {
@@ -381,7 +247,7 @@ document.addEventListener("DOMContentLoaded", () => {
       button.className = `btn ${btnInfo.class || "btn-secondary"}`;
       button.onclick = () => {
         ui.dialog.overlay.classList.add("hidden");
-        if (btnInfo.callback) btnInfo.callback();
+        btnInfo.callback?.();
       };
       ui.dialog.buttons.appendChild(button);
     });
@@ -398,7 +264,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const item = document.createElement("div");
         item.className = "gallery-item";
         const imageUrl = `/outputs/${imageFile}`;
-        item.innerHTML = `<img src="${imageUrl}" alt="${imageFile}" class="gallery-item-image" loading="lazy"><div class="image-actions-overlay"><a href="${imageUrl}" download class="image-action-btn" title="Download Image"><span class="material-symbols-outlined">download</span></a><a href="${imageUrl}" target="_blank" class="image-action-btn" title="Open in New Tab"><span class="material-symbols-outlined">open_in_new</span></a></div>`;
+        item.innerHTML = `<img src="${imageUrl}" alt="${imageFile}" class="gallery-item-image" loading="lazy"><div class="image-actions-overlay"><a href="${imageUrl}" target="_blank" class="image-action-btn" title="Open in New Tab"><span class="material-symbols-outlined">open_in_new</span></a></div>`;
         item
           .querySelector(".image-actions-overlay")
           .addEventListener("click", (e) => e.stopPropagation());
@@ -419,64 +285,13 @@ document.addEventListener("DOMContentLoaded", () => {
     document.removeEventListener("keydown", handleLightboxKeys);
   }
 
-  function handleLightboxKeys(e) {
-    if (ui.lightbox.container.classList.contains("hidden")) return;
-    switch (e.key) {
-      case "Escape":
-        closeLightbox();
-        break;
-      case "ArrowLeft":
-        ui.lightbox.prevBtn.click();
-        break;
-      case "ArrowRight":
-        ui.lightbox.nextBtn.click();
-        break;
-      case "f":
-      case "F":
-        ui.lightbox.fitBtn.click();
-        break;
-      case "+":
-      case "=":
-        ui.lightbox.zoomInBtn.click();
-        break;
-      case "-":
-      case "_":
-        ui.lightbox.zoomOutBtn.click();
-        break;
-      case "Delete":
-        ui.lightbox.deleteBtn.click();
-        break;
-    }
-  }
-
   function showLightboxImage(index) {
-    const isFromGallery = typeof index === "number";
-    let imageUrl, caption;
-
-    if (isFromGallery) {
-      if (index < 0 || index >= state.galleryImages.length) return;
-      state.currentLightboxIndex = index;
-      caption = state.galleryImages[index];
-      imageUrl = `/outputs/${caption}`;
-      ui.lightbox.prevBtn.style.display = "block";
-      ui.lightbox.nextBtn.style.display = "block";
-      ui.lightbox.deleteBtn.style.display = "block";
-    } else {
-      state.currentLightboxIndex = -1;
-      imageUrl = ui.generate.outputImage.src;
-      caption = imageUrl.split("/").pop().split("?")[0];
-      ui.lightbox.prevBtn.style.display = "none";
-      ui.lightbox.nextBtn.style.display = "none";
-      ui.lightbox.deleteBtn.style.display = "block";
-    }
-
-    ui.lightbox.img.src = imageUrl;
-    ui.lightbox.caption.textContent = caption;
+    if (index < 0 || index >= state.galleryImages.length) return;
+    state.currentLightboxIndex = index;
+    const filename = state.galleryImages[index];
+    ui.lightbox.img.src = `/outputs/${filename}`;
+    ui.lightbox.caption.textContent = filename;
     resetZoomAndPan();
-  }
-
-  function updateImageTransform() {
-    ui.lightbox.img.style.transform = `translate(${state.panCurrent.x}px, ${state.panCurrent.y}px) scale(${state.zoomLevel})`;
   }
 
   function resetZoomAndPan() {
@@ -485,187 +300,760 @@ document.addEventListener("DOMContentLoaded", () => {
     updateImageTransform();
   }
 
-  function updateSliderBackground(slider) {
-    const min = parseFloat(slider.min || 0);
-    const max = parseFloat(slider.max || 100);
-    const val = parseFloat(slider.value);
-    const percentage = ((val - min) * 100) / (max - min);
-    slider.style.backgroundSize = `${percentage}% 100%`;
+  function updateImageTransform() {
+    ui.lightbox.img.style.transform = `translate(${state.panCurrent.x}px, ${state.panCurrent.y}px) scale(${state.zoomLevel})`;
+  }
+
+  function handleLightboxKeys(e) {
+    const keyMap = {
+      Escape: closeLightbox,
+      ArrowLeft: () => ui.lightbox.prevBtn.click(),
+      ArrowRight: () => ui.lightbox.nextBtn.click(),
+      "+": () => ui.lightbox.zoomInBtn.click(),
+      "-": () => ui.lightbox.zoomOutBtn.click(),
+      f: () => ui.lightbox.fitBtn.click(),
+      Delete: () => ui.lightbox.deleteBtn.click(),
+    };
+    keyMap[e.key]?.();
+  }
+
+  function populateSettingsLists() {
+    const createFileItem = (filename, type) => {
+      const item = ui.settings.fileItemTemplate.content.cloneNode(true);
+      item.querySelector(".file-name").textContent = filename;
+      const deleteBtn = item.querySelector(".file-delete-btn");
+      deleteBtn.addEventListener("click", () => {
+        const action =
+          type === "model" ? "delete_model_file" : "delete_lora_file";
+        showDialog(
+          "Confirm Deletion",
+          `Delete <strong>${filename}</strong>? This cannot be undone.`,
+          [
+            { text: "Cancel" },
+            {
+              text: "Delete",
+              class: "btn-danger",
+              callback: () => sendMessage(action, { filename }),
+            },
+          ]
+        );
+      });
+      return item;
+    };
+
+    ui.settings.modelsList.innerHTML = "";
+    state.settings.models.forEach((model) =>
+      ui.settings.modelsList.appendChild(createFileItem(model, "model"))
+    );
+
+    ui.settings.lorasList.innerHTML = "";
+    state.settings.loras.forEach((lora) =>
+      ui.settings.lorasList.appendChild(createFileItem(lora, "lora"))
+    );
+  }
+
+  function initCanvasInteraction() {
+    const { canvas } = ui.node;
+    const resetView = () => {
+      state.canvas.scale = 1;
+      state.canvas.offsetX = 0;
+      state.canvas.offsetY = 0;
+      updateCanvasTransform();
+    };
+    ui.resetZoomBtn.addEventListener("click", resetView);
+
+    canvas.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const wheel = e.deltaY < 0 ? 1.1 : 0.9;
+      const newScale = Math.max(0.2, Math.min(3, state.canvas.scale * wheel));
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      state.canvas.offsetX = mouseX - (mouseX - state.canvas.offsetX) * wheel;
+      state.canvas.offsetY = mouseY - (mouseY - state.canvas.offsetY) * wheel;
+      state.canvas.scale = newScale;
+      updateCanvasTransform();
+    });
+    canvas.addEventListener("mousedown", (e) => {
+      if (e.target === canvas) {
+        state.canvas.isDragging = true;
+        state.canvas.startX = e.clientX - state.canvas.offsetX;
+        state.canvas.startY = e.clientY - state.canvas.offsetY;
+        canvas.style.cursor = "grabbing";
+      }
+    });
+    document.addEventListener("mousemove", (e) => {
+      if (state.canvas.isDragging) {
+        state.canvas.offsetX = e.clientX - state.canvas.startX;
+        state.canvas.offsetY = e.clientY - state.canvas.startY;
+        updateCanvasTransform();
+      }
+    });
+    document.addEventListener("mouseup", () => {
+      state.canvas.isDragging = false;
+      canvas.style.cursor = "default";
+    });
+  }
+
+  function updateCanvasTransform() {
+    const { canvas, connectorSvg } = ui.node;
+    canvas.style.transform = `translate(${state.canvas.offsetX}px, ${state.canvas.offsetY}px) scale(${state.canvas.scale})`;
+    connectorSvg.style.transform = `translate(${state.canvas.offsetX}px, ${state.canvas.offsetY}px) scale(${state.canvas.scale})`;
+  }
+
+  function makeNodeDraggable(node) {
+    const header = node.querySelector(".node-header");
+    if (!header) return;
+    header.addEventListener("mousedown", (e) => {
+      e.stopPropagation();
+      let startX = e.clientX,
+        startY = e.clientY;
+      let startLeft = node.offsetLeft,
+        startTop = node.offsetTop;
+      const onMouseMove = (moveEvent) => {
+        const dx = (moveEvent.clientX - startX) / state.canvas.scale;
+        const dy = (moveEvent.clientY - startY) / state.canvas.scale;
+        node.style.left = `${startLeft + dx}px`;
+        node.style.top = `${startTop + dy}px`;
+      };
+      const onMouseUp = () =>
+        document.removeEventListener("mousemove", onMouseMove);
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp, { once: true });
+    });
+  }
+
+  function createNode(type, x, y) {
+    if (state.nodes.has(type) && ["lora"].includes(type)) {
+      showDialog("Info", "A LoRA node already exists on the canvas.", [
+        { text: "OK" },
+      ]);
+      return;
+    }
+    const nodeEl = document.createElement("div");
+    nodeEl.id = `node-${type}`;
+    nodeEl.className = "node";
+    nodeEl.style.left = `${x}px`;
+    nodeEl.style.top = `${y}px`;
+    const isPermanent = [
+      "model_sampler",
+      "parameters",
+      "image_preview",
+      "prompt",
+    ].includes(type);
+    let header = "",
+      content = "";
+
+    switch (type) {
+      case "model_sampler":
+        header = `<h3 class="node-title">Model & Sampler</h3><div class="node-header-actions"><button class="icon-btn" id="node-refresh-models" title="Refresh Models"><span class="material-symbols-outlined">refresh</span></button><button class="icon-btn" id="node-unload-model" title="Unload Model" disabled><span class="material-symbols-outlined">cancel</span></button></div>`;
+        content = `<div class="node-content">
+                <div class="control-group"><label>Model</label><div class="custom-dropdown" data-key="model_name"></div></div>
+                <div class="control-group"><label>Sampler</label><div class="custom-dropdown" data-key="scheduler_name"></div></div>
+                <div class="control-group"><div id="model-status" style="font-size: 0.8rem; text-align: center;">No model loaded.</div></div>
+            </div>`;
+        break;
+      case "parameters":
+        header = `<h3 class="node-title">Parameters & Dimensions</h3>`;
+        content = `<div class="node-content">
+                <div class="control-group"><label>Steps</label><div class="slider-input-group"><input type="range" class="range-input" data-key="steps" min="1" max="100" value="${state.generationState.steps}" step="1"><input type="number" data-value-for="steps" value="${state.generationState.steps}"></div></div>
+                <div class="control-group"><label>Guidance</label><div class="slider-input-group"><input type="range" class="range-input" data-key="guidance" min="1" max="20" value="${state.generationState.guidance}" step="1"><input type="number" data-value-for="guidance" value="${state.generationState.guidance}"></div></div>
+                <div class="control-group"><label>Width</label><div class="slider-input-group"><input type="range" class="range-input" data-key="width" min="256" max="2048" value="${state.generationState.width}" step="64"><input type="number" data-value-for="width" value="${state.generationState.width}"></div></div>
+                <div class="control-group"><label>Height</label><div class="slider-input-group"><input type="range" class="range-input" data-key="height" min="256" max="2048" value="${state.generationState.height}" step="64"><input type="number" data-value-for="height" value="${state.generationState.height}"></div></div>
+                <div class="control-group"><label>Aspect Ratio</label><div class="aspect-ratio-buttons"><button class="aspect-ratio-btn ar-1-1" data-ratio="1:1" title="1:1"></button><button class="aspect-ratio-btn ar-4-3" data-ratio="4:3" title="4:3"></button><button class="aspect-ratio-btn ar-3-4" data-ratio="3:4" title="3:4"></button><button class="aspect-ratio-btn ar-16-9" data-ratio="16:9" title="16:9"></button><button class="aspect-ratio-btn ar-9-16" data-ratio="9:16" title="9:16"></button></div></div>
+                <div class="control-group"><label>Seed</label><div class="seed-input-wrapper"><input type="number" class="form-input" data-key="seed" value="${state.generationState.seed}"><button id="random-seed" class="icon-btn" title="Randomize Seed"><span class="material-symbols-outlined">casino</span></button></div></div>
+                <div id="max-res-info" class="max-res-info"></div>
+            </div>`;
+        break;
+      case "image_preview":
+        header = `<h3 class="node-title">Image Preview</h3>`;
+        content = `<div class="node-content">
+                <div class="image-preview-node">
+                    <div class="placeholder"><span class="material-symbols-outlined">wallpaper</span></div>
+                    <img class="preview-img hidden" />
+                    <div class="progress-overlay"><div class="progress-bar"><div class="progress-bar-inner"></div></div><span class="progress-text"></span></div>
+                </div>
+                <div class="image-preview-actions"><button id="view-image-btn" class="icon-btn" title="View Image" disabled><span class="material-symbols-outlined">visibility</span></button><button id="delete-image-btn" class="icon-btn" title="Delete Image" disabled><span class="material-symbols-outlined">delete</span></button></div>
+            </div>`;
+        break;
+      case "prompt":
+        header = `<h3 class="node-title">Prompt</h3>`;
+        content = `<div class="node-content">
+                <div class="control-group"><label>Prompt</label><div class="autoresize-textarea-wrapper"><textarea class="form-textarea" data-key="prompt" rows="1">${state.generationState.prompt}</textarea></div></div>
+                <div class="control-group"><label>Negative Prompt</label><div class="autoresize-textarea-wrapper"><textarea class="form-textarea" data-key="negative_prompt" rows="1">${state.generationState.negative_prompt}</textarea></div></div>
+            </div>`;
+        break;
+      case "lora":
+        header = `<h3 class="node-title">LoRA</h3>`;
+        content = `<div class="node-content">
+                <div class="control-group"><label>LoRA</label><div class="custom-dropdown" data-key="lora_name"></div></div>
+                <div class="control-group"><label>Weight</label><div class="slider-input-group"><input type="range" class="range-input" data-key="lora_weight" min="0" max="1" value="${state.generationState.lora_weight}" step="0.05"><input type="number" data-value-for="lora_weight" value="${state.generationState.lora_weight}" step="0.05"></div></div>
+            </div>`;
+        break;
+      default:
+        return;
+    }
+
+    nodeEl.innerHTML = `<div class="node-header">${header}${
+      !isPermanent
+        ? '<button class="node-delete" title="Delete Node">&times;</button>'
+        : ""
+    }</div>${content}`;
+    ui.node.canvas.appendChild(nodeEl);
+    state.nodes.set(type, { el: nodeEl });
+    makeNodeDraggable(nodeEl);
+    initNodeControls(nodeEl, type, isPermanent);
+  }
+
+  function initNodeControls(node, type, isPermanent) {
+    const setupAutoresize = (textarea) => {
+      const update = () => {
+        textarea.style.height = "auto";
+        textarea.style.height = `${textarea.scrollHeight}px`;
+      };
+      textarea.addEventListener("input", update);
+      update();
+    };
+
+    const createDropdown = (container, key, options, defaultVal) => {
+      container.innerHTML = "";
+      const selected = document.createElement("div");
+      selected.className = "dropdown-selected";
+      selected.textContent =
+        state.generationState[key] || defaultVal || "Select...";
+      const optionsList = document.createElement("ul");
+      optionsList.className = "dropdown-options";
+      if (key === "lora_name") options = ["None", ...options];
+
+      options.forEach((opt) => {
+        const optionEl = document.createElement("li");
+        optionEl.className = "dropdown-option";
+        optionEl.textContent = opt;
+        optionEl.dataset.value = opt;
+        optionsList.appendChild(optionEl);
+      });
+      container.append(selected, optionsList);
+      container.addEventListener("click", (e) => {
+        if (e.target.matches(".dropdown-option")) {
+          state.generationState[key] =
+            e.target.dataset.value === "None" ? null : e.target.dataset.value;
+          selected.textContent = e.target.textContent;
+          container.classList.remove("open");
+        } else {
+          container.classList.toggle("open");
+        }
+      });
+    };
+
+    node.querySelectorAll(".slider-input-group").forEach((group) => {
+      const rangeInput = group.querySelector('input[type="range"]');
+      const numberInput = group.querySelector('input[type="number"]');
+      const key = rangeInput.dataset.key;
+
+      const updateRangeBg = (input) => {
+        const percent =
+          ((input.value - input.min) / (input.max - input.min)) * 100;
+        input.style.backgroundSize = `${percent}% 100%`;
+      };
+
+      rangeInput.addEventListener("input", () => {
+        const value = rangeInput.step.includes(".")
+          ? parseFloat(rangeInput.value).toFixed(2)
+          : rangeInput.value;
+        numberInput.value = value;
+        state.generationState[key] = parseFloat(value);
+        updateRangeBg(rangeInput);
+      });
+      numberInput.addEventListener("change", () => {
+        let value = parseFloat(numberInput.value);
+        value = Math.max(
+          parseFloat(rangeInput.min),
+          Math.min(parseFloat(rangeInput.max), value)
+        );
+        if (isNaN(value)) value = state.generationState[key];
+        numberInput.value = value;
+        rangeInput.value = value;
+        state.generationState[key] = value;
+        updateRangeBg(rangeInput);
+      });
+      updateRangeBg(rangeInput);
+    });
+
+    node.querySelectorAll("textarea.form-textarea").forEach((textarea) => {
+      setupAutoresize(textarea);
+      textarea.addEventListener("input", () => {
+        state.generationState[textarea.dataset.key] = textarea.value;
+      });
+    });
+
+    node.querySelectorAll("input.form-input").forEach((input) => {
+      const key = input.dataset.key;
+      input.addEventListener(
+        "change",
+        () => (state.generationState[key] = parseInt(input.value))
+      );
+    });
+
+    if (type === "model_sampler") {
+      const modelDropdownContainer = node.querySelector(
+        '.custom-dropdown[data-key="model_name"]'
+      );
+      const samplerDropdownContainer = node.querySelector(
+        '.custom-dropdown[data-key="scheduler_name"]'
+      );
+      const rebuildModelDropdown = (models) =>
+        createDropdown(
+          modelDropdownContainer,
+          "model_name",
+          models,
+          "Select a model"
+        );
+
+      fetch("/api/config")
+        .then((r) => r.json())
+        .then((config) => {
+          state.settings.models = config.models;
+          state.settings.loras = config.loras;
+          rebuildModelDropdown(config.models);
+          createDropdown(
+            samplerDropdownContainer,
+            "scheduler_name",
+            config.schedulers,
+            "Euler A"
+          );
+        });
+
+      node
+        .querySelector("#node-refresh-models")
+        .addEventListener("click", (e) => {
+          e.stopPropagation();
+          fetch("/api/config")
+            .then((r) => r.json())
+            .then((config) => {
+              state.settings.models = config.models;
+              rebuildModelDropdown(config.models);
+            });
+        });
+
+      node
+        .querySelector("#node-unload-model")
+        .addEventListener("click", (e) => {
+          e.stopPropagation();
+          sendMessage("unload_model");
+        });
+    }
+
+    if (type === "parameters") {
+      node.querySelector("#random-seed").addEventListener("click", () => {
+        const newSeed = Math.floor(Math.random() * 2 ** 32);
+        state.generationState.seed = newSeed;
+        node.querySelector('input[data-key="seed"]').value = newSeed;
+      });
+      node.querySelectorAll(".aspect-ratio-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const [w, h] = btn.dataset.ratio.split(":").map(Number);
+          const isVertical = h > w;
+          const baseSize =
+            state.generationState.width > 768
+              ? 1024
+              : state.generationState.width > 512
+              ? 768
+              : 512;
+          let newWidth, newHeight;
+          if (w === h) {
+            newWidth = baseSize;
+            newHeight = baseSize;
+          } else if (isVertical) {
+            newHeight = baseSize;
+            newWidth = Math.round((baseSize * w) / h / 64) * 64;
+          } else {
+            newWidth = baseSize;
+            newHeight = Math.round((baseSize * h) / w / 64) * 64;
+          }
+          updateNodeUI("parameters", { width: newWidth, height: newHeight });
+        });
+      });
+    }
+
+    if (type === "image_preview") {
+      node.querySelector("#view-image-btn").addEventListener("click", () => {
+        if (state.lastGeneratedImage) {
+          const imgIndex = state.galleryImages.indexOf(
+            state.lastGeneratedImage
+          );
+          if (imgIndex !== -1) openLightbox(imgIndex);
+        }
+      });
+      node.querySelector("#delete-image-btn").addEventListener("click", () => {
+        if (state.lastGeneratedImage) {
+          showDialog(
+            "Confirm Deletion",
+            `Delete <strong>${state.lastGeneratedImage}</strong>?`,
+            [
+              { text: "Cancel" },
+              {
+                text: "Delete",
+                class: "btn-danger",
+                callback: () => {
+                  sendMessage("delete_image", {
+                    filename: state.lastGeneratedImage,
+                  });
+                  state.lastGeneratedImage = null;
+                  updateNodeUI("image_preview", { image: null });
+                },
+              },
+            ]
+          );
+        }
+      });
+    }
+
+    if (type === "lora") {
+      const loraDropdownContainer = node.querySelector(
+        '.custom-dropdown[data-key="lora_name"]'
+      );
+      fetch("/api/config")
+        .then((r) => r.json())
+        .then((config) =>
+          createDropdown(
+            loraDropdownContainer,
+            "lora_name",
+            config.loras,
+            "None"
+          )
+        );
+    }
+
+    if (!isPermanent) {
+      node.querySelector(".node-delete").addEventListener("click", () => {
+        if (type === "lora") state.generationState.lora_name = null;
+        node.remove();
+        state.nodes.delete(type);
+      });
+    }
+  }
+
+  function updateNodeUI(type, updates) {
+    const node = state.nodes.get(type)?.el;
+    if (!node) return;
+    if (type === "model_sampler") {
+      if (updates.status)
+        node.querySelector("#model-status").textContent = updates.status;
+      node.querySelector("#node-unload-model").disabled = !updates.loaded;
+      ui.node.generateBtn.disabled = !updates.loaded;
+    }
+    if (type === "image_preview") {
+      const progressOverlay = node.querySelector(".progress-overlay");
+      const viewBtn = node.querySelector("#view-image-btn");
+      const deleteBtn = node.querySelector("#delete-image-btn");
+
+      if (updates.clearProgress) progressOverlay.classList.remove("visible");
+      if (updates.progress !== undefined) {
+        progressOverlay.classList.add("visible");
+        node.querySelector(".progress-bar-inner").style.width = `${
+          updates.progress * 100
+        }%`;
+        node.querySelector(".progress-text").textContent = updates.description;
+      }
+      if (updates.image !== undefined) {
+        const img = node.querySelector(".preview-img");
+        const placeholder = node.querySelector(".placeholder");
+        if (updates.image) {
+          img.src = `/outputs/${updates.image}`;
+          img.classList.remove("hidden");
+          placeholder.classList.add("hidden");
+        } else {
+          img.src = "";
+          img.classList.add("hidden");
+          placeholder.classList.remove("hidden");
+        }
+        viewBtn.disabled = !updates.image;
+        deleteBtn.disabled = !updates.image;
+      }
+    }
+    if (type === "parameters") {
+      if (updates.width) {
+        const input = node.querySelector('input[data-key="width"]');
+        input.value = updates.width;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      if (updates.height) {
+        const input = node.querySelector('input[data-key="height"]');
+        input.value = updates.height;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      if (updates.max_res !== undefined) {
+        const infoEl = node.querySelector("#max-res-info");
+        infoEl.innerHTML = updates.max_res
+          ? `Recommended Max: <strong>${updates.max_res}px</strong>`
+          : "";
+      }
+    }
+  }
+
+  function initDock() {
+    ui.node.dockButtons.forEach((button) => {
+      const type = button.dataset.nodeType;
+      const isToggle = ["vae_tiling", "cpu_offload"].includes(type);
+
+      button.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        if (isToggle) {
+          state.generationState[type] = !state.generationState[type];
+          button.classList.toggle("active", state.generationState[type]);
+          if (state.isModelLoaded)
+            showDialog(
+              "Info",
+              "This setting requires a model reload to take effect.",
+              [{ text: "OK" }]
+            );
+          return;
+        }
+        const tempNode = button.cloneNode(true);
+        Object.assign(tempNode.style, {
+          position: "fixed",
+          zIndex: "9999",
+          opacity: "0.8",
+          pointerEvents: "none",
+          left: `${e.clientX - 25}px`,
+          top: `${e.clientY - 25}px`,
+        });
+        document.body.appendChild(tempNode);
+        const onMouseMove = (moveEvent) => {
+          tempNode.style.left = `${moveEvent.clientX - 25}px`;
+          tempNode.style.top = `${moveEvent.clientY - 25}px`;
+        };
+        const onMouseUp = (upEvent) => {
+          document.removeEventListener("mousemove", onMouseMove);
+          document.body.removeChild(tempNode);
+          const canvasRect = ui.node.canvas.getBoundingClientRect();
+          if (
+            upEvent.clientX >= canvasRect.left &&
+            upEvent.clientX <= canvasRect.right &&
+            upEvent.clientY >= canvasRect.top &&
+            upEvent.clientY <= canvasRect.bottom
+          ) {
+            const x =
+              (upEvent.clientX - canvasRect.left - state.canvas.offsetX) /
+              state.canvas.scale;
+            const y =
+              (upEvent.clientY - canvasRect.top - state.canvas.offsetY) /
+              state.canvas.scale;
+            createNode(type, x, y);
+          }
+        };
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", onMouseUp, { once: true });
+      });
+    });
+
+    ui.node.loadModelBtn.addEventListener("click", () => {
+      if (!state.generationState.model_name) {
+        showDialog("Error", "Please select a model to load.", [{ text: "OK" }]);
+        return;
+      }
+      updateNodeUI("model_sampler", {
+        status: "Loading model...",
+        loaded: false,
+      });
+      updateNodeUI("image_preview", {
+        showProgress: true,
+        description: "Loading...",
+      });
+      const payload = {
+        model_name: state.generationState.model_name,
+        scheduler_name: state.generationState.scheduler_name,
+        lora_name: state.generationState.lora_name,
+        vae_tiling: state.generationState.vae_tiling,
+        cpu_offload: state.generationState.cpu_offload,
+      };
+      sendMessage("load_model", payload);
+    });
+
+    ui.node.generateBtn.addEventListener("click", () => {
+      updateNodeUI("image_preview", {
+        showProgress: true,
+        description: "Starting...",
+      });
+      const payload = { ...state.generationState };
+      payload.lora_weight = state.generationState.lora_name
+        ? state.generationState.lora_weight
+        : 0;
+      sendMessage("generate_image", payload);
+    });
+
+    document
+      .querySelector('[data-node-type="vae_tiling"]')
+      .classList.toggle("active", state.generationState.vae_tiling);
+    document
+      .querySelector('[data-node-type="cpu_offload"]')
+      .classList.toggle("active", state.generationState.cpu_offload);
+  }
+
+  async function loadPrompts() {
+    try {
+      const response = await fetch("/api/prompts");
+      state.prompts = await response.json();
+      populatePromptBook(state.prompts);
+    } catch (error) {
+      console.error("Error loading prompts:", error);
+    }
+  }
+
+  function populatePromptBook(prompts) {
+    ui.promptBook.grid.innerHTML = "";
+    const hasPrompts = prompts.length > 0;
+    ui.promptBook.placeholder.classList.toggle("hidden", hasPrompts);
+    if (hasPrompts) {
+      prompts.forEach((p, index) => {
+        const item = document.createElement("div");
+        item.className = "gallery-item";
+        item.innerHTML = `<div class="prompt-item-content"><h4>${
+          p.title
+        }</h4><p><strong>Prompt:</strong> ${p.prompt}</p>${
+          p.negative_prompt
+            ? `<p><strong>Negative:</strong> ${p.negative_prompt}</p>`
+            : ""
+        }</div><div class="image-actions-overlay"><button class="image-action-btn" data-action="use" data-index="${index}" title="Use Prompt"><span class="material-symbols-outlined">add_task</span></button><button class="image-action-btn" data-action="edit" data-index="${index}" title="Edit Prompt"><span class="material-symbols-outlined">edit</span></button><button class="image-action-btn" data-action="delete" data-index="${index}" title="Delete Prompt"><span class="material-symbols-outlined">delete</span></button></div>`;
+        ui.promptBook.grid.appendChild(item);
+      });
+    }
+  }
+
+  function handlePromptBookClick(e) {
+    const button = e.target.closest(".image-action-btn");
+    if (!button) return;
+    const { action, index } = button.dataset;
+    const prompt = state.prompts[index];
+
+    if (action === "use") {
+      const promptNode = state.nodes.get("prompt")?.el;
+      if (!promptNode) return;
+      state.generationState.prompt = prompt.prompt;
+      state.generationState.negative_prompt = prompt.negative_prompt || "";
+      const promptTextarea = promptNode.querySelector('[data-key="prompt"]');
+      const negPromptTextarea = promptNode.querySelector(
+        '[data-key="negative_prompt"]'
+      );
+      promptTextarea.value = prompt.prompt;
+      negPromptTextarea.value = prompt.negative_prompt || "";
+      promptTextarea.dispatchEvent(new Event("input", { bubbles: true }));
+      negPromptTextarea.dispatchEvent(new Event("input", { bubbles: true }));
+      ui.navLinks[0].click();
+    } else if (action === "edit") {
+      const { editor } = ui.promptBook;
+      editor._oldTitle = prompt.title;
+      editor.title.textContent = "Edit Prompt";
+      editor.titleInput.value = prompt.title;
+      editor.promptInput.value = prompt.prompt;
+      editor.negativeInput.value = prompt.negative_prompt || "";
+      editor.promptInput.dispatchEvent(new Event("input", { bubbles: true }));
+      editor.negativeInput.dispatchEvent(new Event("input", { bubbles: true }));
+      editor.overlay.classList.remove("hidden");
+    } else if (action === "delete") {
+      showDialog(
+        "Confirm Deletion",
+        `Delete prompt "<strong>${prompt.title}</strong>"?`,
+        [
+          { text: "Cancel" },
+          {
+            text: "Delete",
+            class: "btn-danger",
+            callback: () => deletePrompt(prompt.title),
+          },
+        ]
+      );
+    }
+  }
+
+  async function savePrompt() {
+    const { editor } = ui.promptBook;
+    const body = {
+      old_title: editor._oldTitle,
+      new_title: editor.titleInput.value,
+      prompt: editor.promptInput.value,
+      negative_prompt: editor.negativeInput.value,
+    };
+    try {
+      const response = await fetch("/api/prompts", {
+        method: editor._oldTitle ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if ((await response.json()).success) {
+        editor.overlay.classList.add("hidden");
+        loadPrompts();
+      } else {
+        showDialog("Error", "Failed to save prompt. Title may already exist.", [
+          { text: "OK" },
+        ]);
+      }
+    } catch (error) {
+      console.error("Error saving prompt:", error);
+    }
+  }
+
+  async function deletePrompt(title) {
+    try {
+      const response = await fetch("/api/prompts", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      if ((await response.json()).success) loadPrompts();
+    } catch (error) {
+      console.error("Error deleting prompt:", error);
+    }
   }
 
   function setupEventListeners() {
-    document.querySelectorAll(".range-input").forEach((slider) => {
-      const valueDisplay = document.getElementById(
-        slider.id.replace("-slider", "-value")
-      );
-      const updateFunc = () => {
-        if (valueDisplay)
-          valueDisplay.textContent =
-            slider.value +
-            (slider.id.includes("width") || slider.id.includes("height")
-              ? "px"
-              : "");
-        updateSliderBackground(slider);
-      };
-      slider.addEventListener("input", updateFunc);
-      updateFunc();
-    });
+    ui.themeToggle.addEventListener("click", toggleTheme);
+    ui.restartBtn.addEventListener("click", () =>
+      sendMessage("restart_backend")
+    );
+    ui.clearCacheBtn.addEventListener("click", () =>
+      sendMessage("clear_cache")
+    );
 
-    document.querySelectorAll(".form-textarea").forEach((textarea) => {
-      textarea.addEventListener("input", () => autoResizeTextarea(textarea));
-      textarea.addEventListener("focus", () => autoResizeTextarea(textarea));
-      autoResizeTextarea(textarea);
-    });
+    document
+      .querySelectorAll(".autoresize-textarea-wrapper textarea")
+      .forEach((textarea) => {
+        const wrapper = textarea.parentElement;
+        wrapper.dataset.replicatedValue = textarea.value;
+        textarea.addEventListener("input", () => {
+          wrapper.dataset.replicatedValue = textarea.value;
+        });
+      });
 
-    ui.nav.links.forEach((link) => {
+    ui.navLinks.forEach((link) => {
       link.addEventListener("click", (e) => {
         e.preventDefault();
-        ui.nav.links.forEach((l) => l.classList.remove("active"));
+        ui.navLinks.forEach((l) => l.classList.remove("active"));
         link.classList.add("active");
-        Object.values(ui.pages).forEach((page) => page.classList.add("hidden"));
-        document
-          .getElementById(`page-${link.dataset.target}`)
-          .classList.remove("hidden");
-      });
-    });
-
-    ui.lora.toggle.addEventListener("change", () => {
-      ui.lora.container.classList.toggle("hidden");
-      updateLoadButtonState();
-    });
-
-    ui.model.loadBtn.addEventListener("click", () => {
-      setBusyState(true);
-      updateStatus("Loading model...", "busy");
-      sendMessage("load_model", {
-        model_name: ui.model.dropdown.dataset.value,
-        scheduler_name: ui.model.samplerDropdown.dataset.value,
-        lora_name: ui.lora.toggle.checked
-          ? ui.lora.dropdown.dataset.value
-          : "None",
-        vae_tiling: ui.params.vaeTilingCheckbox.checked,
-        cpu_offload: ui.params.cpuOffloadCheckbox.checked,
-      });
-    });
-
-    ui.model.unloadBtn.addEventListener("click", () => {
-      setBusyState(true);
-      updateStatus("Unloading model...", "busy");
-      sendMessage("unload_model");
-    });
-
-    [ui.model.dropdown, ui.lora.dropdown].forEach((el) =>
-      el.addEventListener("click", (e) => {
-        if (e.target.tagName === "LI") updateLoadButtonState();
-      })
-    );
-    [ui.params.cpuOffloadCheckbox, ui.params.vaeTilingCheckbox].forEach((el) =>
-      el.addEventListener("change", updateLoadButtonState)
-    );
-
-    ui.generate.btn.addEventListener("click", () => {
-      setBusyState(true);
-      ui.generate.infoText.textContent = "";
-      sendMessage("generate_image", {
-        prompt: ui.params.prompt.value,
-        negative_prompt: ui.params.negativePrompt.value,
-        steps: parseInt(ui.params.stepsSlider.value),
-        guidance: parseFloat(ui.params.guidanceSlider.value),
-        seed: parseInt(ui.params.seedInput.value),
-        width: parseInt(ui.params.widthSlider.value),
-        height: parseInt(ui.params.heightSlider.value),
-        lora_weight: ui.lora.toggle.checked
-          ? parseFloat(ui.lora.weightSlider.value)
-          : 0,
-      });
-    });
-
-    ui.generate.outputImage.onload = () => {
-      const img = ui.generate.outputImage;
-      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-        ui.generate.wrapper.style.aspectRatio = `${img.naturalWidth} / ${img.naturalHeight}`;
-      }
-    };
-
-    ui.params.randomizeSeedBtn.addEventListener("click", () => {
-      ui.params.seedInput.value = Math.floor(Math.random() * 2 ** 32);
-    });
-
-    ui.params.aspectRatioBtns.addEventListener("click", (e) => {
-      const btn = e.target.closest(".btn-aspect-ratio");
-      if (btn && !state.isBusy) {
-        const presets =
-          ASPECT_RATIOS[state.modelType] || ASPECT_RATIOS["SD 1.5"];
-        if (presets[btn.dataset.ratio]) {
-          setDimensions(...presets[btn.dataset.ratio]);
-          ui.params.aspectRatioBtns
-            .querySelectorAll("button")
-            .forEach((b) => b.classList.remove("active"));
-          btn.classList.add("active");
-        }
-      }
-    });
-
-    const refreshHandler = async (type) => {
-      const response = await fetch("/api/config");
-      const config = await response.json();
-      if (type === "models")
-        createCustomDropdown(
-          ui.model.dropdown,
-          config.models,
-          updateLoadButtonState
+        Object.values(ui.pages).forEach((p) => p.classList.add("hidden"));
+        const targetPage = document.getElementById(
+          `page-${link.dataset.target}`
         );
-      else if (type === "loras")
-        createCustomDropdown(
-          ui.lora.dropdown,
-          ["None", ...config.loras],
-          updateLoadButtonState
-        );
-    };
+        if (targetPage) targetPage.classList.remove("hidden");
+        if (link.dataset.target === "prompt-book") loadPrompts();
+        if (link.dataset.target === "settings")
+          sendMessage("get_settings_data");
+      });
+    });
 
-    ui.model.refreshBtn.addEventListener("click", () =>
-      refreshHandler("models")
-    );
-    ui.lora.refreshBtn.addEventListener("click", () => refreshHandler("loras"));
     ui.gallery.refreshBtn.addEventListener("click", () =>
       fetch("/api/config")
-        .then((res) => res.json())
-        .then((config) => populateGallery(config.gallery_images))
+        .then((r) => r.json())
+        .then((c) => populateGallery(c.gallery_images.map((i) => i.filename)))
+    );
+    ui.settings.refreshModelsBtn.addEventListener("click", () =>
+      sendMessage("get_settings_data")
+    );
+    ui.settings.refreshLorasBtn.addEventListener("click", () =>
+      sendMessage("get_settings_data")
     );
 
-    ui.generate.wrapper.addEventListener("click", (e) => {
-      if (
-        ui.generate.wrapper.classList.contains("has-image") &&
-        e.target.closest(".image-action-btn") === null
-      )
-        openLightbox(null);
-    });
-    ui.generate.viewBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (ui.generate.wrapper.classList.contains("has-image"))
-        openLightbox(null);
-    });
-
     ui.lightbox.closeBtn.addEventListener("click", closeLightbox);
-    ui.lightbox.deleteBtn.addEventListener("click", () => {
-      const filename = ui.lightbox.caption.textContent;
-      const buttons = [
-        { text: "Cancel" },
-        {
-          text: "Delete",
-          class: "btn-danger",
-          callback: () => sendMessage("delete_image", { filename }),
-        },
-      ];
-      showDialog(
-        "Confirm Deletion",
-        `Are you sure you want to permanently delete <strong>${filename}</strong>? This action cannot be undone.`,
-        buttons
-      );
-    });
-    ui.lightbox.container.addEventListener("click", (e) => {
-      if (e.target === ui.lightbox.container) closeLightbox();
-    });
     ui.lightbox.prevBtn.addEventListener("click", () =>
       showLightboxImage(state.currentLightboxIndex - 1)
     );
@@ -681,10 +1069,19 @@ document.addEventListener("DOMContentLoaded", () => {
       updateImageTransform();
     });
     ui.lightbox.fitBtn.addEventListener("click", resetZoomAndPan);
-
+    ui.lightbox.deleteBtn.addEventListener("click", () => {
+      const filename = state.galleryImages[state.currentLightboxIndex];
+      showDialog("Confirm Deletion", `Delete <strong>${filename}</strong>?`, [
+        { text: "Cancel" },
+        {
+          text: "Delete",
+          class: "btn-danger",
+          callback: () => sendMessage("delete_image", { filename }),
+        },
+      ]);
+    });
     ui.lightbox.imageWrapper.addEventListener("mousedown", (e) => {
       if (e.button !== 0) return;
-      e.preventDefault();
       state.isPanning = true;
       state.panStart = {
         x: e.clientX - state.panCurrent.x,
@@ -693,68 +1090,70 @@ document.addEventListener("DOMContentLoaded", () => {
       ui.lightbox.imageWrapper.style.cursor = "grabbing";
     });
     window.addEventListener("mousemove", (e) => {
-      if (!state.isPanning) return;
-      e.preventDefault();
-      state.panCurrent = {
-        x: e.clientX - state.panStart.x,
-        y: e.clientY - state.panStart.y,
-      };
-      updateImageTransform();
+      if (state.isPanning) {
+        state.panCurrent = {
+          x: e.clientX - state.panStart.x,
+          y: e.clientY - state.panStart.y,
+        };
+        updateImageTransform();
+      }
     });
-    window.addEventListener("mouseup", (e) => {
-      if (!state.isPanning) return;
-      e.preventDefault();
-      state.isPanning = false;
-      ui.lightbox.imageWrapper.style.cursor = "grab";
+    window.addEventListener("mouseup", () => {
+      if (state.isPanning) {
+        state.isPanning = false;
+        ui.lightbox.imageWrapper.style.cursor = "grab";
+      }
     });
+
+    ui.promptBook.addBtn.addEventListener("click", () => {
+      const { editor } = ui.promptBook;
+      editor._oldTitle = null;
+      editor.title.textContent = "Add New Prompt";
+      editor.titleInput.value = "";
+      editor.promptInput.value = "";
+      editor.negativeInput.value = "";
+      editor.promptInput.dispatchEvent(new Event("input", { bubbles: true }));
+      editor.negativeInput.dispatchEvent(new Event("input", { bubbles: true }));
+      editor.overlay.classList.remove("hidden");
+    });
+    ui.promptBook.refreshBtn.addEventListener("click", loadPrompts);
+    ui.promptBook.grid.addEventListener("click", handlePromptBookClick);
+    ui.promptBook.editor.buttons.innerHTML =
+      '<button id="save-prompt-btn" class="btn btn-primary">Save</button><button id="cancel-prompt-btn" class="btn btn-secondary">Cancel</button>';
+    document
+      .getElementById("save-prompt-btn")
+      .addEventListener("click", savePrompt);
+    document
+      .getElementById("cancel-prompt-btn")
+      .addEventListener("click", () =>
+        ui.promptBook.editor.overlay.classList.add("hidden")
+      );
   }
 
   async function init() {
+    initTheme();
+    connectWebSocket();
+    setupEventListeners();
+    initCanvasInteraction();
+    initDock();
+
     try {
       const response = await fetch("/api/config");
-      if (!response.ok)
-        throw new Error(`HTTP error! status: ${response.status}`);
       const config = await response.json();
-      createCustomDropdown(
-        ui.model.dropdown,
-        config.models,
-        updateLoadButtonState
-      );
-      createCustomDropdown(ui.model.samplerDropdown, config.schedulers);
-      createCustomDropdown(
-        ui.lora.dropdown,
-        ["None", ...config.loras],
-        updateLoadButtonState
-      );
-      populateGallery(config.gallery_images);
-
-      const generationControls = document
-        .getElementById("page-generate")
-        .querySelectorAll(
-          "button, input, textarea, .custom-dropdown, .lora-switch"
-        );
-      ui.busyControls = Array.from(generationControls).filter(
-        (el) => !el.closest(".image-actions-overlay")
-      );
-
-      setBusyState(false);
-      updateLoadButtonState();
+      populateGallery(config.gallery_images.map((img) => img.filename));
+      createNode("model_sampler", 50, 50);
+      createNode("prompt", 50, 350);
+      createNode("parameters", 400, 50);
+      createNode("image_preview", 750, 50);
     } catch (error) {
+      console.error("Failed to fetch initial config:", error);
       showDialog(
         "Initialization Error",
-        "Could not load configuration from the server. Please refresh the page.",
+        "Could not load configuration from the server.",
         [{ text: "OK" }]
       );
-      console.error("Failed to fetch initial config:", error);
     }
   }
 
   init();
-  connectWebSocket();
-  setupEventListeners();
-  document.addEventListener("click", () =>
-    document
-      .querySelectorAll(".custom-dropdown.open")
-      .forEach((d) => d.classList.remove("open"))
-  );
 });
