@@ -2,7 +2,7 @@ import torch
 import logging
 import os
 import requests
-from diffusers import FluxPipeline
+from diffusers import FluxPipeline, FluxTransformer2DModel
 from huggingface_hub.errors import GatedRepoError
 from .base_pipeline import ArtTicPipeline
 
@@ -20,19 +20,29 @@ class ArtTicFLUXPipeline(ArtTicPipeline):
     def load_pipeline(self, progress):
         if self.is_schnell:
             repo_id = FLUX_SCHNELL_BASE_REPO
-            desc = "Loading base FLUX.1 Schnell components..."
+            desc = "Loading FLUX.1 Schnell components..."
         else:
             repo_id = FLUX_DEV_BASE_REPO
-            desc = "Loading base FLUX.1 DEV components..."
+            desc = "Loading FLUX.1 DEV components..."
 
         progress(0.2, desc)
         try:
+            logger.info(f"Loading transformer from local file: {self.model_path}")
+            transformer = FluxTransformer2DModel.from_single_file(
+                self.model_path, torch_dtype=self.dtype
+            )
+            logger.info("Local transformer loaded successfully.")
+
+            progress(0.4, f"Loading remaining components from {repo_id}...")
             self.pipe = FluxPipeline.from_pretrained(
                 repo_id,
+                transformer=transformer,
                 torch_dtype=self.dtype,
                 use_safetensors=True,
                 progress_bar_config={"disable": True},
             )
+            logger.info("Pipeline constructed with local transformer.")
+
         except GatedRepoError as e:
             logger.error(
                 "Hugging Face Gated Repo Error: User needs to be logged in and have accepted the license for FLUX models."
@@ -43,7 +53,7 @@ class ArtTicFLUXPipeline(ArtTicPipeline):
             ) from e
         except (requests.exceptions.RequestException, FileNotFoundError) as e:
             logger.error(
-                f"Failed to download FLUX base model from '{repo_id}'. This is likely due to a network issue or a corrupted cache. Error: {e}"
+                f"Failed to download FLUX components from '{repo_id}'. This is likely due to a network issue or a corrupted cache. Error: {e}"
             )
             cache_path = os.path.join(
                 os.path.expanduser("~"), ".cache", "huggingface", "hub"
@@ -59,11 +69,9 @@ class ArtTicFLUXPipeline(ArtTicPipeline):
             )
             raise RuntimeError(error_message) from e
 
-        progress(0.5, "Injecting local model weights...")
-        self.pipe.load_lora_weights(self.model_path)
         model_type = "Schnell" if self.is_schnell else "DEV"
         logger.info(
-            f"Successfully injected FLUX {model_type} weights from '{self.model_path}'"
+            f"Successfully loaded FLUX {model_type} model '{os.path.basename(self.model_path)}'"
         )
 
     def generate(self, *args, **kwargs):

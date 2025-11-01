@@ -13,9 +13,17 @@ MODELS_DIR = "./models"
 
 
 def _is_flux(keys):
-    return any(k.startswith("transformer.") for k in keys) or any(
-        k.startswith("double_blocks.") for k in keys
+    has_flux_signature = any("transformer." in k for k in keys) or any(
+        "double_blocks." in k for k in keys
     )
+    has_unet_signature = any("input_blocks" in k for k in keys) or any(
+        "output_blocks" in k for k in keys
+    )
+    return has_flux_signature and not has_unet_signature
+
+
+def _is_sd3(keys):
+    return any(k.startswith("text_encoders.") for k in keys)
 
 
 def _is_xl(keys):
@@ -27,10 +35,6 @@ def _is_v2(keys):
         "model.diffusion_model.input_blocks.8.1.transformer_blocks.0.attn2.to_k.weight"
         in keys
     )
-
-
-def _is_sd3(keys):
-    return any(k.startswith("text_encoders.") for k in keys)
 
 
 def get_pipeline_for_model(model_name):
@@ -46,7 +50,13 @@ def get_pipeline_for_model(model_name):
         )
         return SD15Pipeline(model_path)
 
-    if _is_flux(keys):
+    if _is_sd3(keys):
+        logger.info(f"Model '{model_name}' detected as SD3.")
+        return SD3Pipeline(model_path)
+    elif _is_xl(keys):
+        logger.info(f"Model '{model_name}' detected as SDXL.")
+        return SDXLPipeline(model_path)
+    elif _is_flux(keys):
         logger.info(f"Model '{model_name}' detected as FLUX based on tensor keys.")
         if "schnell" in model_name_lower:
             logger.info("FLUX model identified as 'Schnell' variant from filename.")
@@ -54,12 +64,6 @@ def get_pipeline_for_model(model_name):
         else:
             logger.info("FLUX model identified as 'DEV' variant.")
             return ArtTicFLUXPipeline(model_path, is_schnell=False)
-    elif _is_sd3(keys):
-        logger.info(f"Model '{model_name}' detected as SD3.")
-        return SD3Pipeline(model_path)
-    elif _is_xl(keys):
-        logger.info(f"Model '{model_name}' detected as SDXL.")
-        return SDXLPipeline(model_path)
     elif _is_v2(keys):
         logger.info(f"Model '{model_name}' detected as SD 2.x.")
         return SD2Pipeline(model_path)

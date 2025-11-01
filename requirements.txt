@@ -2,6 +2,8 @@
 diffusers
 huggingface-hub
 hf_xet
+hf-transfer
+aria2
 safetensors
 transformers
 
