@@ -1,19 +1,134 @@
 [[default_prompts]]
-title = "The Sunken Library"
-prompt = "An ancient, circular library partially submerged in calm, clear water. Moonlight streams through a grand oculus in the ceiling, illuminating floating books and glowing bioluminescent moss on stone walls. Fantasy concept art, atmospheric, mysterious, highly detailed, Unreal Engine 5 render, trending on ArtStation."
-negative_prompt = "bright daylight, dry, empty, modern, people, blurry, low quality, disfigured books."
+title = "Dreamlike Watercolor Muse"
+prompt = "ethereal portrait of a beautiful young woman with flowing hair, watercolor painting style, soft pastel tones, light pink and blue background, elegant composition, fine art aesthetic, delicate brush texture, graceful expression, dreamy lighting, highly detailed, artistic illustration, soft focus, serene and poetic atmosphere"
+negative_prompt = "blurry, distorted face, low quality, harsh lighting, overexposed, cartoonish"
 
 [[default_prompts]]
-title = "Cosmic Oracle"
-prompt = "Close-up portrait of an ethereal cosmic oracle. Her long, flowing hair is a swirling galaxy filled with stars. Her eyes are like twin nebulae, glowing with inner light. Ornate, celestial armor with intricate filigree. Cosmic dust shimmers on her skin. Digital painting, hyperrealistic, stunning detail, atmospheric, elegant."
-negative_prompt = "plain, simple, boring, ugly, deformed face, cartoon, 3d render, poorly drawn hands, extra fingers."
+title = "Celestial Beauty"
+prompt = "portrait of a celestial woman surrounded by clouds of watercolor mist, soft blue and rose hues, glowing skin, subtle sparkle, fantasy realism, ethereal mood, elegant eyes, luminous aura, delicate brushwork, fine art digital painting, soft light diffusion, cinematic composition"
+negative_prompt = "grainy, noisy background, ugly lighting, poor anatomy"
 
 [[default_prompts]]
-title = "Crystal Desert at Dusk"
-prompt = "A vast desert at dusk, dunes made of giant, smooth, translucent crystals reflecting the twilight colors. Two large moons hang in a deep purple and orange sky. Surreal landscape, fantasy environment, beautiful, peaceful, cinematic wide shot, matte painting, 8k resolution."
-negative_prompt = "sand, ocean, trees, people, buildings, harsh lighting, daytime, blurry, grainy."
+title = "Whispers of Light"
+prompt = "close-up portrait of a beautiful girl with wind-blown hair, painted in dreamy watercolor, soft brush textures, translucent fabric, pastel background splashes, romantic atmosphere, artistic illustration, emotional depth, smooth color transitions, natural beauty, serene expression"
+negative_prompt = "harsh shadows, over-saturated, artificial texture, rough edges"
 
 [[default_prompts]]
-title = "Clockwork Dragon"
-prompt = "A magnificent clockwork dragon perched atop a gothic clock tower. Its body is crafted from intricate brass, copper, and polished wood, with visible gears and cogs turning beneath its plating. Puffs of steam vent from its joints. Dramatic lighting from a stormy sky, steampunk, highly detailed, photorealistic, masterpiece."
-negative_prompt = "flesh, scales, biological, simple, cartoon, flying, modern city, plastic."
+title = "Ocean Spirit"
+prompt = "fantasy portrait of a mystical woman with blue flowing hair resembling ocean waves, watercolor art, cool color palette, seafoam accents, luminous eyes, elegant posture, magical and calming aura, fine art style, detailed face, soft-focus lighting, painterly textures"
+negative_prompt = "cartoon style, flat lighting, low detail, pixelated"
+
+[[default_prompts]]
+title = "Renaissance Dream"
+prompt = "fine art portrait of a young woman in soft light, renaissance-inspired style mixed with watercolor elegance, warm pastel tones, delicate brushwork, emotional gaze, artistic realism, timeless feminine beauty, museum-quality illustration"
+negative_prompt = "overexposed, modern style, glitch art, distorted proportions"
+
+[[default_prompts]]
+title = "Ethereal Whisper"
+prompt = "highly detailed digital watercolor of an angelic woman, gentle pastel colors, serene expression, translucent veil, artistic background splashes, soft light bloom, poetic atmosphere, elegant pose, emotional depth, watercolor realism"
+negative_prompt = "harsh contrast, cartoon filter, bad anatomy"
+
+[[default_prompts]]
+title = "The Blooming Dream"
+prompt = "surreal watercolor painting of a single flower dissolving into colorful mist, petals transforming into paint splashes, glowing ambient light, delicate and ethereal composition, pastel tones, artistic elegance, fine art illustration, dreamy atmosphere"
+negative_prompt = "flat colors, low contrast, chaotic background"
+
+[[default_prompts]]
+title = "Floral Galaxy"
+prompt = "cosmic flowers blooming in deep space, glowing petals made of stardust, nebula-like colors swirling around, ethereal light beams, fantasy sci-fi fusion, ultra-detailed, fine art digital painting, galactic flora concept"
+negative_prompt = "grainy, cluttered, unnatural shapes, harsh neon"
+
+[[default_prompts]]
+title = "Mechanical Rose"
+prompt = "cyberpunk-inspired rose made of glowing metal and glass, petals shaped like holographic circuits, vibrant neon lighting, futuristic botanical design, cinematic contrast, 3D realism mixed with digital art style"
+negative_prompt = "low poly, muddy lighting, cheap 3d render"
+
+[[default_prompts]]
+title = "Whisper of Nature"
+prompt = "delicate bouquet made of translucent flowers floating in air, surrounded by soft watercolor mist, elegant pastel background, ethereal lighting, fine art photography aesthetic, painterly texture, poetic stillness"
+negative_prompt = "oversaturated, harsh light, blurred background"
+
+[[default_prompts]]
+title = "Timeflower"
+prompt = "surreal flower growing from an antique clock, petals shaped like clock hands and gears, blending steampunk and nature aesthetics, symbolic art concept, detailed texture, moody lighting, cinematic focus"
+negative_prompt = "cartoonish, cluttered composition, harsh shadows"
+
+[[default_prompts]]
+title = "Infernal Bloom"
+prompt = "a flower made of fire and smoke, burning petals curling into ash, dark fantasy mood, high contrast lighting, glowing embers floating around, hyperrealistic digital painting, cinematic tone"
+negative_prompt = "flat fire texture, bad lighting, messy background"
+
+[[default_prompts]]
+title = "Moonlit Lotus"
+prompt = "luminous lotus floating on calm water under a glowing full moon, soft mist, cool blue tones, magical realism style, reflection in water, peaceful ethereal aura, fine art digital painting"
+negative_prompt = "too dark, distorted reflection, noise artifacts"
+
+[[default_prompts]]
+title = "Fractal Garden"
+prompt = "abstract fractal flowers spiraling infinitely, glowing geometry patterns, neon fractal energy lines, sacred geometry, futuristic color palette, detailed symmetry"
+negative_prompt = "random lines, pixelated, dull composition"
+
+[[default_prompts]]
+title = "Petals of Memory"
+prompt = "conceptual art showing petals dissolving into ink and words, poetic symbolism, minimal composition, soft lighting, watercolor ink fusion, emotional tone, surreal beauty"
+negative_prompt = "chaotic text, unclear shapes, strong shadows"
+
+[[default_prompts]]
+title = "Heaven’s Garden"
+prompt = "floating island covered in radiant flowers, golden sunlight streaming through clouds, dreamlike landscape, soft focus, painterly brushwork, fantasy realism style"
+negative_prompt = "cartoonish, low detail, poor perspective"
+
+[[default_prompts]]
+title = "Echoes of Silence"
+prompt = "a lone man standing in a vast empty landscape, surrounded by swirling mist and fading echoes of himself, surreal atmosphere, muted color palette, cinematic lighting, fine art digital painting, emotional solitude, melancholy and introspection"
+negative_prompt = "crowded scene, harsh sunlight, low detail"
+
+[[default_prompts]]
+title = "Weight of the Sky"
+prompt = "a man standing beneath an enormous sky filled with heavy clouds, his figure small against the vastness, soft moody lighting, symbolic composition representing isolation and insignificance, fine art tone, subdued blues and greys"
+negative_prompt = "overbright sky, extra people, chaotic scene"
+
+[[default_prompts]]
+title = "Drowning in Thoughts"
+prompt = "surreal portrait of a man submerged halfway in calm ocean water, his reflection dissolving into waves, symbolic art of loneliness and introspection, soft light, dreamy atmosphere, painterly textures"
+negative_prompt = "realistic skin details, harsh contrast, poor reflections"
+
+[[default_prompts]]
+title = "Man of Smoke"
+prompt = "surreal portrait of a solitary man made of smoke and fading embers, his body partially dissolving into air, wearing a long flowing dark trench coat that blends into the mist, tousled medium-length hair that drifts like vapor, calm yet haunted, standing in a dark void, cinematic soft lighting, fine art digital painting"
+negative_prompt = "visible face, visible skin, modern background, sharp edges"
+
+[[default_prompts]]
+title = "The Ember King"
+prompt = "a man of smoke and fire, wearing a tattered cloak of glowing embers, hair flowing like ash in wind, standing in darkness surrounded by drifting sparks, ethereal cinematic lighting, fine art digital painting, surreal tone of loneliness and quiet power"
+negative_prompt = "visible face, skin details, neon lighting"
+
+[[default_prompts]]
+title = "Silent Dissolve"
+prompt = "a man with smoke hair and translucent body fading into the air, dressed in an elegant long coat made of mist, soft ambient backlight, painterly fantasy realism, symbolic representation of solitude"
+negative_prompt = "face visible, bright daylight, extra objects"
+
+[[default_prompts]]
+title = "Man of Smoke (core)"
+prompt = "a lone man made of swirling smoke and faint embers, long dark trench coat blending into mist, tousled hair drifting upward, no face visible, cinematic light, surreal fine art digital painting"
+negative_prompt = "face visible, realistic skin, flat light, cartoon style"
+
+[[default_prompts]]
+title = "The Fading Silhouette"
+prompt = "solitary male figure dissolving into smoke, glowing ember veins under coat, hair merging with vapor, faceless, dark void background, moody lighting, painterly cinematic surrealism"
+negative_prompt = "visible skin, bright background, modern outfit"
+
+[[default_prompts]]
+title = "Whispering Ember"
+prompt = "mysterious man in flowing coat formed of smoke and ash, faceless silhouette, strands of smoky hair, faint ember glow, soft volumetric lighting, ethereal surreal fine art concept"
+negative_prompt = "visible face, harsh shadows, low detail"
+
+[[default_prompts]]
+title = "Dissolving Wanderer"
+prompt = "hooded man walking through misty void, body fading into smoke, glowing embers within coat folds, faceless, moody cinematic light, atmospheric fine art digital painting"
+negative_prompt = "visible face, poor lighting, cluttered background"
+
+[[default_prompts]]
+title = "Hollow Drift"
+prompt = "dark silhouette of a man turning into drifting smoke, long coat and hair blending into vapor, no face, ember sparks floating around, minimalist surreal composition, painterly realism"
+negative_prompt = "visible face, real human skin, bright color palette"
