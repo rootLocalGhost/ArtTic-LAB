@@ -1,16 +1,15 @@
-# Core AI and model handling libraries
+accelerate
 diffusers
-huggingface-hub
-hf_xet
-hf-transfer
-aria2
-safetensors
-transformers
-
-# Gradio UI framework
-gradio
-
-# Custom Web UI framework and server
 fastapi
-uvicorn
+intel-extension-for-pytorch
 Jinja2
+pyngrok
+python-multipart
+safetensors
+toml
+torch
+torchvision
+torchaudio
+uvicorn
+Pillow
+requests
