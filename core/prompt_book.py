@@ -13,9 +13,9 @@ class PromptBook:
             default_prompts = {
                 "default_prompts": [
                     {
-                        "title": "Fantasy Portrait",
-                        "prompt": "A fantasy portrait of a mystical woman with blue flowing hair resembling ocean waves, watercolor art, cool color palette, seafoam accents, luminous eyes, elegant posture, magical and calming aura, fine art style, detailed face, soft-focus lighting, painterly textures",
-                        "negative_prompt": "ugly, deformed, blurry, noisy",
+                        "title": "Ocean Spirit",
+                        "prompt": "fantasy portrait of an Ocean Spirit, mystical woman with flowing hair like seafoam green and celadon waves, watercolor art, cool color palette of mint green and dark brunswick green, luminous eyes, elegant posture, magical and calming aura, fine art style, detailed face, soft-focus lighting, painterly textures",
+                        "negative_prompt": "ugly, deformed, blurry, noisy, saturated colors, warm colors",
                     },
                     {
                         "title": "Cyberpunk Cityscape",
