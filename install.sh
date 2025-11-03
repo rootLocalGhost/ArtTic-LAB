@@ -198,7 +198,18 @@ esac
 echo -e "[INFO] Installing other dependencies from requirements.txt..."
 pip install -r requirements.txt
 
-# 4. Handle Hugging Face Login
+# 4. Install Web UI dependencies
+echo ""
+echo -e "[INFO] Installing Web UI dependencies..."
+if ! command -v npm &> /dev/null; then
+    echo -e "${YELLOW}[WARNING] npm (Node.js) is not installed or not in your PATH.${NC}"
+    echo -e "Skipping automatic installation of UI icon packages."
+    echo -e "The UI will still work but will fetch icons from the web."
+else
+    (cd web && npm install)
+fi
+
+# 5. Handle Hugging Face Login
 handle_hf_login
 
 echo ""
