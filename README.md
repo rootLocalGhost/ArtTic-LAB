@@ -34,17 +34,10 @@ With full support for models from **Stable Diffusion 1.5 → SDXL → SD3 → FL
 ArtTic-LAB adapts to your preferred workflow — visual or terminal-based.
 
 <div style="display: flex; justify-content: center; align-items: center; gap: 20px; flex-wrap: wrap;">
-  <div style="text-align: center;">
-    <p>GUI (Light)</p>
-    <img src="assets/ArtTic-LAB-GUI-Light.png" style="width: 300px; border-radius: 8px;">
-  </div>
-  <div style="text-align: center;">
-    <p>GUI (Dark)</p>
-    <img src="assets/ArtTic-LAB-GUI-Dark.png" style="width: 300px; border-radius: 8px;">
-  </div>
-  <div style="text-align: center;">
-    <p>The CLI</p>
-    <img src="assets/ArtTic-LAB-CLI.png" style="width: 300px; border-radius: 8px;">
+  <div style="text-align: center; display: inline;">
+    <img src="assets/ArtTic-LAB-GUI-Light.png" style="width: 330px; border-radius: 8px;">
+    <img src="assets/ArtTic-LAB-GUI-Dark.png" style="width: 330px; border-radius: 8px;">
+    <img src="assets/ArtTic-LAB-CLI.png" style="width: 330px; border-radius: 8px;">
   </div>
 </div>
 
