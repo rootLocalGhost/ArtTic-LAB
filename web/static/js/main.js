@@ -38,6 +38,8 @@ document.addEventListener("DOMContentLoaded", () => {
       height: 512,
       vae_tiling: true,
       cpu_offload: false,
+      init_image: null,
+      strength: 0.75,
     },
   };
 
@@ -131,9 +133,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function connectWebSocket() {
-    const url = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${
-      window.location.host
-    }/ws`;
+    const url = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host
+      }/ws`;
     state.socket = new WebSocket(url);
     state.socket.onopen = () => {
       updateConnectionStatus("Connected", "connected");
@@ -300,9 +301,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!notification) {
       notification = document.createElement("div");
       notification.className = `notification ${type}`;
-      notification.innerHTML = `<span class="material-symbols-outlined">${
-        iconMap[type] || "info"
-      }</span><div class="notification-content">${message}</div>`;
+      notification.innerHTML = `<span class="material-symbols-outlined">${iconMap[type] || "info"
+        }</span><div class="notification-content">${message}</div>`;
       if (type === "progress") {
         const progressBar = document.createElement("div");
         progressBar.style.cssText =
@@ -316,9 +316,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     notification.querySelector(".notification-content").innerHTML = message;
     if (type === "progress" && progress !== null) {
-      notification.querySelector(".progress-bar-inner").style.width = `${
-        progress * 100
-      }%`;
+      notification.querySelector(".progress-bar-inner").style.width = `${progress * 100
+        }%`;
     }
 
     if (state.notifications[id].timeout) {
@@ -599,11 +598,35 @@ document.addEventListener("DOMContentLoaded", () => {
         break;
       case "parameters":
         header = `<h3 class="node-title">Parameters & Dimensions</h3>`;
-        content = `<div class="node-content"><div class="control-group"><label>Steps</label><div class="slider-input-group"><input type="range" class="range-input" data-key="steps" min="1" max="100" value="${state.generationState.steps}" step="1"><input type="number" data-value-for="steps" value="${state.generationState.steps}"></div></div><div class="control-group"><label>Guidance</label><div class="slider-input-group"><input type="range" class="range-input" data-key="guidance" min="1" max="20" value="${state.generationState.guidance}" step="1"><input type="number" data-value-for="guidance" value="${state.generationState.guidance}" step="1"></div></div><div class="control-group"><label>Width</label><div class="slider-input-group"><input type="range" class="range-input" data-key="width" min="256" max="4096" value="${state.generationState.width}" step="64"><input type="number" data-value-for="width" value="${state.generationState.width}"></div></div><div class="control-group"><label>Height</label><div class="slider-input-group"><input type="range" class="range-input" data-key="height" min="256" max="4096" value="${state.generationState.height}" step="64"><input type="number" data-value-for="height" value="${state.generationState.height}"></div></div><div class="control-group"><div class="aspect-ratio-buttons"><button class="aspect-ratio-btn active" data-ratio="1:1" title="Square"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg></button><button class="aspect-ratio-btn" data-ratio="4:3" title="Landscape"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"></rect></svg></button><button class="aspect-ratio-btn" data-ratio="3:4" title="Portrait"><svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2"></rect></svg></button></div></div><div class="control-group"><label>Seed</label><div class="seed-input-wrapper"><input type="number" class="form-input" data-key="seed" value="${state.generationState.seed}"><button id="random-seed" class="icon-btn" title="Randomize Seed"><span class="material-symbols-outlined">casino</span></button></div></div><div id="max-res-info" class="max-res-info">Load a model for VRAM estimate.</div></div>`;
+        content = `<div class="node-content">
+          <div class="control-group"><label>Steps</label><div class="slider-input-group"><input type="range" class="range-input" data-key="steps" min="1" max="100" value="${state.generationState.steps}" step="1"><input type="number" data-value-for="steps" value="${state.generationState.steps}"></div></div>
+          <div class="control-group"><label>Guidance (CFG)</label><div class="slider-input-group"><input type="range" class="range-input" data-key="guidance" min="1" max="20" value="${state.generationState.guidance}" step="0.5"><input type="number" data-value-for="guidance" value="${state.generationState.guidance}" step="0.5"></div></div>
+          <div class="control-group"><label>Img2Img Strength</label><div class="slider-input-group"><input type="range" class="range-input" data-key="strength" min="0.05" max="1.0" value="${state.generationState.strength}" step="0.05"><input type="number" data-value-for="strength" value="${state.generationState.strength}" step="0.05"></div></div>
+          <div class="control-group"><label>Width</label><div class="slider-input-group"><input type="range" class="range-input" data-key="width" min="256" max="4096" value="${state.generationState.width}" step="64"><input type="number" data-value-for="width" value="${state.generationState.width}"></div></div>
+          <div class="control-group"><label>Height</label><div class="slider-input-group"><input type="range" class="range-input" data-key="height" min="256" max="4096" value="${state.generationState.height}" step="64"><input type="number" data-value-for="height" value="${state.generationState.height}"></div></div>
+          <div class="control-group"><div class="aspect-ratio-buttons"><button class="aspect-ratio-btn active" data-ratio="1:1" title="Square"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg></button><button class="aspect-ratio-btn" data-ratio="4:3" title="Landscape"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"></rect></svg></button><button class="aspect-ratio-btn" data-ratio="3:4" title="Portrait"><svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2"></rect></svg></button></div></div>
+          <div class="control-group"><label>Seed</label><div class="seed-input-wrapper"><input type="number" class="form-input" data-key="seed" value="${state.generationState.seed}"><button id="random-seed" class="icon-btn" title="Randomize Seed"><span class="material-symbols-outlined">casino</span></button></div></div>
+          <div id="max-res-info" class="max-res-info">Load a model for VRAM estimate.</div>
+          </div>`;
         break;
       case "image_preview":
         header = `<h3 class="node-title">Image Preview</h3>`;
         content = `<div class="node-content"><div class="image-preview-node"><div class="placeholder"><span class="material-symbols-outlined">wallpaper</span></div><img class="preview-img hidden" /></div><div id="image-info-text" class="max-res-info"></div><div class="image-preview-actions"><button id="view-image-btn" class="icon-btn" title="View Image" disabled><span class="material-symbols-outlined">visibility</span></button></div></div>`;
+        break;
+      case "input_image":
+        header = `<h3 class="node-title">Input Image</h3>`;
+        content = `
+        <div class="node-content">
+            <div class="input-image-dropzone" id="input-image-dropzone">
+                <span class="material-symbols-outlined">add_photo_alternate</span>
+                <p>Drag & Drop or Click</p>
+                <input type="file" id="input-image-file" accept="image/*" hidden>
+            </div>
+            <div class="input-image-preview hidden">
+                <img id="input-image-img" src="" alt="Input">
+                <button class="remove-image-btn"><span class="material-symbols-outlined">close</span></button>
+            </div>
+        </div>`;
         break;
       case "prompt":
         header = `<h3 class="node-title">Prompt</h3>`;
@@ -614,14 +637,14 @@ document.addEventListener("DOMContentLoaded", () => {
         content = `<div class="node-content"><div class="control-group"><label>LoRA</label><div class="custom-dropdown" data-key="lora_name"><div class="dropdown-selected">None</div></div></div><div class="control-group"><label>Weight</label><div class="slider-input-group"><input type="range" class="range-input" data-key="lora_weight" min="0" max="1" value="${state.generationState.lora_weight}" step="0.05"><input type="number" data-value-for="lora_weight" value="${state.generationState.lora_weight}" step="0.05"></div></div></div>`;
         break;
       default:
+        console.error("Unknown node type:", type);
         return;
     }
 
-    nodeEl.innerHTML = `<div class="node-header">${header}${
-      !isPermanent
-        ? '<button class="node-delete icon-btn" title="Delete Node"><span class="material-symbols-outlined">close</span></button>'
-        : ""
-    }</div>${content}`;
+    nodeEl.innerHTML = `<div class="node-header">${header}${!isPermanent
+      ? '<button class="node-delete icon-btn" title="Delete Node"><span class="material-symbols-outlined">close</span></button>'
+      : ""
+      }</div>${content}`;
     ui.node.canvas.appendChild(nodeEl);
     state.nodes.set(type, { el: nodeEl });
     makeNodeDraggable(nodeEl);
@@ -713,11 +736,61 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
+    if (type === "input_image") {
+      const dropzone = node.querySelector("#input-image-dropzone");
+      const fileInput = node.querySelector("#input-image-file");
+      const previewDiv = node.querySelector(".input-image-preview");
+      const previewImg = node.querySelector("#input-image-img");
+      const removeBtn = node.querySelector(".remove-image-btn");
+
+      const handleFile = (file) => {
+        if (file && file.type.startsWith("image/")) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const base64 = e.target.result;
+            state.generationState.init_image = base64;
+            previewImg.src = base64;
+            dropzone.classList.add("hidden");
+            previewDiv.classList.remove("hidden");
+          };
+          reader.readAsDataURL(file);
+        }
+      };
+
+      dropzone.addEventListener("click", () => fileInput.click());
+      fileInput.addEventListener("change", (e) =>
+        handleFile(e.target.files[0])
+      );
+
+      dropzone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropzone.style.borderColor = "var(--primary-500)";
+      });
+      dropzone.addEventListener("dragleave", (e) => {
+        e.preventDefault();
+        dropzone.style.borderColor = "var(--input-border)";
+      });
+      dropzone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropzone.style.borderColor = "var(--input-border)";
+        handleFile(e.dataTransfer.files[0]);
+      });
+
+      removeBtn.addEventListener("click", () => {
+        state.generationState.init_image = null;
+        previewImg.src = "";
+        previewDiv.classList.add("hidden");
+        dropzone.classList.remove("hidden");
+        fileInput.value = "";
+      });
+    }
+
     if (!node.classList.contains("permanent")) {
       const deleteBtn = node.querySelector(".node-delete");
       deleteBtn?.addEventListener("click", () => {
         node.remove();
         state.nodes.delete(type);
+        if (type === "input_image") state.generationState.init_image = null;
         const dockBtn = ui.node.dock.querySelector(
           `.node-dock-button[data-node-type="${type}"]`
         );
@@ -755,8 +828,8 @@ document.addEventListener("DOMContentLoaded", () => {
           key === "models"
             ? "model_name"
             : key === "loras"
-            ? "lora_name"
-            : "scheduler_name";
+              ? "lora_name"
+              : "scheduler_name";
         const container = node.querySelector(
           `.custom-dropdown[data-key="${dropdownKey}"]`
         );
@@ -832,7 +905,15 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         button.addEventListener("click", () => {
           if (button.classList.contains("active")) return;
-          createNode(type, Math.random() * 400, Math.random() * 400 + 400);
+
+          let x = Math.random() * 300;
+          let y = Math.random() * 300 + 300;
+          if (type === "input_image") {
+            x = 0;
+            y = 300; // Positioned higher to ensure visibility
+          }
+
+          createNode(type, x, y);
           button.classList.add("active");
           if (type === "lora") {
             updateNodeUI("lora", { loras: ["None", ...state.settings.loras] });
@@ -1082,7 +1163,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ui.lightbox.prevBtn.addEventListener("click", () =>
       showLightboxImage(
         (state.currentLightboxIndex - 1 + state.galleryImages.length) %
-          state.galleryImages.length
+        state.galleryImages.length
       )
     );
     ui.lightbox.zoomInBtn.addEventListener("click", () => {
