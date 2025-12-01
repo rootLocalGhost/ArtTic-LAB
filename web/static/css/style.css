@@ -1038,15 +1038,15 @@ body {
 }
 
 .lightbox-actions button {
-    width: 36px;
-    height: 36px;
-    background: var(--primary-400);
-    border: 1px solid var(--primary-300);
-    border-radius: 10px;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+     width: 36px;
+     height: 36px;
+     background: var(--primary-400);
+     border: 1px solid var(--primary-300);
+     border-radius: 10px;
+     color: white;
+     display: flex;
+     align-items: center;
+     justify-content: center;
 }
 
 #lightbox-image-wrapper {
@@ -1281,6 +1281,77 @@ body {
 
 .prompt-card-footer {
      margin-top: auto;
+}
+
+/* Img2Img specific styles */
+.input-image-dropzone {
+     border: 2px dashed var(--input-border);
+     border-radius: 12px;
+     padding: 2rem;
+     text-align: center;
+     cursor: pointer;
+     transition: all 0.2s ease;
+     color: var(--text-color);
+     background-color: var(--input-bg);
+}
+
+.input-image-dropzone:hover {
+     border-color: var(--primary-500);
+     color: var(--primary-600);
+     background-color: rgba(var(--primary-500), 0.1);
+}
+
+.input-image-dropzone .material-symbols-outlined {
+     font-size: 48px;
+     margin-bottom: 0.5rem;
+}
+
+.input-image-dropzone p {
+     margin: 0;
+     font-size: 0.9rem;
+     font-weight: 500;
+}
+
+.input-image-preview {
+     position: relative;
+     border-radius: 12px;
+     overflow: hidden;
+     height: 200px;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     background-color: #000;
+}
+
+.input-image-preview img {
+     max-width: 100%;
+     max-height: 100%;
+     object-fit: contain;
+}
+
+.remove-image-btn {
+     position: absolute;
+     top: 8px;
+     right: 8px;
+     background: rgba(0, 0, 0, 0.6);
+     color: white;
+     border: none;
+     border-radius: 50%;
+     width: 28px;
+     height: 28px;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     cursor: pointer;
+     transition: all 0.2s ease;
+}
+
+.remove-image-btn:hover {
+     background: var(--status-red);
+}
+
+.remove-image-btn .material-symbols-outlined {
+     font-size: 18px;
 }
 
 @media (max-width: 900px) {
