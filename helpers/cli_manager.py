@@ -6,7 +6,7 @@ import intel_extension_for_pytorch as ipex
 import diffusers
 
 APP_LOGGER_NAME = "arttic_lab"
-APP_VERSION = "3.0.0"
+APP_VERSION = "3.1.0"
 
 
 class ArtTicFilter(logging.Filter):
