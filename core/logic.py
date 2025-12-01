@@ -7,7 +7,9 @@ import math
 import re
 import asyncio
 import sys
-import subprocess
+import base64
+import io
+from PIL import Image
 from glob import glob
 from diffusers import (
     EulerAncestralDiscreteScheduler,
@@ -438,6 +440,28 @@ def load_model(
         )
 
 
+def process_input_image(image_data_base64, width, height):
+    """
+    Decodes base64 image and resizes it to match target dimensions.
+    Returns a PIL Image object.
+    """
+    try:
+        # Remove header if present (e.g., "data:image/png;base64,")
+        if "," in image_data_base64:
+            image_data_base64 = image_data_base64.split(",")[1]
+
+        image_data = base64.b64decode(image_data_base64)
+        image = Image.open(io.BytesIO(image_data)).convert("RGB")
+
+        # Resize/Resample to fit the generation dimensions
+        # We use high-quality downsampling
+        image = image.resize((width, height), Image.LANCZOS)
+        return image
+    except Exception as e:
+        logger.error(f"Failed to process input image: {e}")
+        raise ValueError("Invalid input image data.")
+
+
 def generate_image(
     prompt,
     negative_prompt,
@@ -447,6 +471,8 @@ def generate_image(
     width,
     height,
     lora_weight,
+    init_image=None,
+    strength=0.75,
     progress_callback=None,
     loop=None,
 ):
@@ -454,8 +480,27 @@ def generate_image(
         raise ConnectionAbortedError("Cannot generate, no model is loaded.")
 
     logger.info("Starting image generation...")
-    start_time = time.time()
+
+    # Process inputs
+    width = int(width)
+    height = int(height)
     seed = int(seed if seed is not None else random.randint(0, 2**32 - 1))
+
+    # Handle Input Image (Img2Img vs Txt2Img)
+    input_image_pil = None
+    if init_image and init_image.strip():
+        logger.info("Input image detected. Preparing for Image-to-Image generation.")
+        try:
+            input_image_pil = process_input_image(init_image, width, height)
+            app_state["current_pipe"].ensure_mode("img2img")
+        except Exception as e:
+            logger.error(f"Error processing init image: {e}")
+            raise ValueError("Failed to process input image.")
+    else:
+        logger.info("No input image. Preparing for Text-to-Image generation.")
+        app_state["current_pipe"].ensure_mode("txt2img")
+
+    start_time = time.time()
     generator = torch.Generator("xpu").manual_seed(seed)
 
     def pipeline_progress_callback(pipe, step, timestep, callback_kwargs):
@@ -471,11 +516,19 @@ def generate_image(
         "prompt": prompt,
         "num_inference_steps": int(steps),
         "guidance_scale": float(guidance),
-        "width": int(width),
-        "height": int(height),
         "generator": generator,
         "callback_on_step_end": pipeline_progress_callback,
     }
+
+    # Add mode-specific arguments
+    if input_image_pil:
+        gen_kwargs["image"] = input_image_pil
+        gen_kwargs["strength"] = float(strength)
+        # Note: Img2Img pipelines generally don't take width/height args, they infer from image
+        # But we already resized the image to width/height
+    else:
+        gen_kwargs["width"] = width
+        gen_kwargs["height"] = height
 
     if app_state["current_lora_name"] and float(lora_weight) > 0:
         gen_kwargs["cross_attention_kwargs"] = {"scale": float(lora_weight)}
@@ -484,9 +537,11 @@ def generate_image(
         )
 
     if negative_prompt and negative_prompt.strip():
+        # FLUX Schnell doesn't use neg prompt, but handled in pipeline class
         gen_kwargs["negative_prompt"] = negative_prompt
 
     try:
+        # Generate
         image = app_state["current_pipe"].generate(**gen_kwargs).images[0]
     except torch.OutOfMemoryError as e:
         torch.xpu.empty_cache()
@@ -518,10 +573,14 @@ def generate_image(
         cfg_scale=guidance,
         lora_info=lora_info,
     )
+    # Add img2img specific metadata if applicable
+    if input_image_pil:
+        metadata["img2img_strength"] = strength
 
     metadata_handler.embed_metadata_to_image(filepath, metadata)
 
-    info_text = f"Generated in {generation_time:.2f}s on '{app_state['current_model_name']}' with seed {seed}."
+    mode_str = "Img2Img" if input_image_pil else "Txt2Img"
+    info_text = f"{mode_str} in {generation_time:.2f}s on '{app_state['current_model_name']}' with seed {seed}."
     if app_state["current_lora_name"]:
         info_text += f" LoRA: {app_state['current_lora_name']} @ {lora_weight}."
 
