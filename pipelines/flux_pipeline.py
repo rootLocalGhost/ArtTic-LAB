@@ -2,7 +2,7 @@ import torch
 import logging
 import os
 import requests
-from diffusers import FluxPipeline, FluxTransformer2DModel
+from diffusers import FluxPipeline, FluxImg2ImgPipeline, FluxTransformer2DModel
 from huggingface_hub.errors import GatedRepoError
 from .base_pipeline import ArtTicPipeline
 
@@ -16,6 +16,8 @@ class ArtTicFLUXPipeline(ArtTicPipeline):
     def __init__(self, model_path, dtype=torch.bfloat16, is_schnell=False):
         super().__init__(model_path, dtype)
         self.is_schnell = is_schnell
+        self.t2i_class = FluxPipeline
+        self.i2i_class = FluxImg2ImgPipeline
 
     def load_pipeline(self, progress):
         if self.is_schnell:
@@ -34,7 +36,7 @@ class ArtTicFLUXPipeline(ArtTicPipeline):
             logger.info("Local transformer loaded successfully.")
 
             progress(0.4, f"Loading remaining components from {repo_id}...")
-            self.pipe = FluxPipeline.from_pretrained(
+            self.pipe = self.t2i_class.from_pretrained(
                 repo_id,
                 transformer=transformer,
                 torch_dtype=self.dtype,
