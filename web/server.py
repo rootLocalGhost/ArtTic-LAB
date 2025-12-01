@@ -16,9 +16,7 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="web/static"), name="static")
 app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
 app.mount("/fonts", StaticFiles(directory="web/fonts"), name="fonts")
-
-if os.path.exists("web/node_modules"):
-    app.mount("/npm", StaticFiles(directory="web/node_modules"), name="npm")
+app.mount("/icons", StaticFiles(directory="web/icons"), name="icons")
 
 env = Environment(loader=FileSystemLoader("web/templates"))
 index_template = env.get_template("index.html")
