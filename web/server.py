@@ -140,6 +140,8 @@ async def websocket_endpoint(websocket: WebSocket):
                             "width": payload.get("width"),
                             "height": payload.get("height"),
                             "lora_weight": payload.get("lora_weight"),
+                            "init_image": payload.get("init_image"),
+                            "strength": payload.get("strength"),
                         }
                         result = await asyncio.to_thread(
                             core.generate_image,
