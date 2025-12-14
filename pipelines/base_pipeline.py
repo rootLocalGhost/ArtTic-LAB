@@ -44,22 +44,53 @@ class ArtTicPipeline:
 
         progress(0.8, "Optimizing model with IPEX...")
 
-        if hasattr(self.pipe, "unet"):
-            self.pipe.unet = ipex.optimize(
-                self.pipe.unet.eval(), dtype=self.dtype, inplace=True
+        # Optimize Text Encoders
+        if hasattr(self.pipe, "text_encoder"):
+            self.pipe.text_encoder = ipex.optimize(
+                self.pipe.text_encoder.eval(), dtype=self.dtype, inplace=True
             )
-            logger.info("U-Net optimized with IPEX.")
+            logger.info("Text Encoder optimized with IPEX.")
+
+        if hasattr(self.pipe, "text_encoder_2"):
+            self.pipe.text_encoder_2 = ipex.optimize(
+                self.pipe.text_encoder_2.eval(), dtype=self.dtype, inplace=True
+            )
+            logger.info("Text Encoder 2 optimized with IPEX.")
+
+        if hasattr(self.pipe, "text_encoder_3"):
+            self.pipe.text_encoder_3 = ipex.optimize(
+                self.pipe.text_encoder_3.eval(), dtype=self.dtype, inplace=True
+            )
+            logger.info("Text Encoder 3 optimized with IPEX.")
+
+        # Optimize U-Net / Transformer
+        if hasattr(self.pipe, "unet"):
+            # Suggest Channels Last memory format for Conv2d layers
+            self.pipe.unet = self.pipe.unet.to(memory_format=torch.channels_last)
+            self.pipe.unet = ipex.optimize(
+                self.pipe.unet.eval(),
+                dtype=self.dtype,
+                inplace=True,
+                weights_prepack=True,
+            )
+            logger.info("U-Net optimized with IPEX (Channels Last).")
+
         elif hasattr(self.pipe, "transformer"):
             self.pipe.transformer = ipex.optimize(
                 self.pipe.transformer.eval(), dtype=self.dtype, inplace=True
             )
             logger.info("Transformer optimized with IPEX.")
 
+        # Optimize VAE
         if hasattr(self.pipe, "vae"):
+            self.pipe.vae = self.pipe.vae.to(memory_format=torch.channels_last)
             self.pipe.vae = ipex.optimize(
-                self.pipe.vae.eval(), dtype=self.dtype, inplace=True
+                self.pipe.vae.eval(),
+                dtype=self.dtype,
+                inplace=True,
+                weights_prepack=True,
             )
-            logger.info("VAE optimized with IPEX.")
+            logger.info("VAE optimized with IPEX (Channels Last).")
 
         self.is_optimized = True
 
