@@ -159,14 +159,17 @@ echo "[INFO] Installing hardware-specific dependencies..."
 
 case "$TORCH_PLATFORM" in
     xpu)
-        pip install torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/xpu
+        # Note: torchaudio is excluded to avoid ffmpeg requirement on Linux
+        pip install torch==2.8.0 torchvision==0.23.0 --index-url https://download.pytorch.org/whl/xpu
         pip install intel-extension-for-pytorch==2.8.10+xpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/xpu/us/
         ;;
     cu*)
-        pip install torch torchvision torchaudio
+        # Note: torchaudio is excluded to avoid ffmpeg requirement on Linux
+        pip install torch torchvision
         ;;
     *)
-        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+        # Note: torchaudio is excluded to avoid ffmpeg requirement on Linux
+        pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
         pip install intel-extension-for-pytorch --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/cpu/us/
         ;;
 esac
