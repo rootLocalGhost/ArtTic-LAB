@@ -11,11 +11,11 @@
   <a href="https://www.intel.com/content/www/us/en/products/docs/arc-discrete-graphics.html">
     <img src="https://img.shields.io/badge/Optimized%20for-Intel®%20ARC™-blue.svg?style=for-the-badge&logo=intel" alt="Intel ARC">
   </a>
-  <a href="https://github.com/Md-Siam-Mia-Man/ArtTic-LAB/stargazers">
-    <img src="https://img.shields.io/github/stars/Md-Siam-Mia-Man/ArtTic-LAB?style=for-the-badge&logo=github" alt="Stars">
+  <a href="https://github.com/rootLocalGhost/ArtTic-LAB/stargazers">
+    <img src="https://img.shields.io/github/stars/rootLocalGhost/ArtTic-LAB?style=for-the-badge&logo=github" alt="Stars">
   </a>
-  <a href="https://github.com/Md-Siam-Mia-Man/ArtTic-LAB/issues">
-    <img src="https://img.shields.io/github/issues/Md-Siam-Mia-Man/ArtTic-LAB?style=for-the-badge" alt="Issues">
+  <a href="https://github.com/rootLocalGhost/ArtTic-LAB/issues">
+    <img src="https://img.shields.io/github/issues/rootLocalGhost/ArtTic-LAB?style=for-the-badge" alt="Issues">
   </a>
 </p>
 
